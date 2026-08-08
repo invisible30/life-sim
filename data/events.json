@@ -6,11 +6,13 @@
       "type": "milestone",
       "stage": "freshman",
       "title": "大一报到，专业和室友都定了",
-      "description": "刚进 {university} 的 {major} 专业。室友里有学霸、有社交达人、有游戏宅。社团招新季到了。",
+      "description": "刚进 {university} 的 {major} 专业。室友里有学霸、有社交达人、有游戏宅。社团招新季到了。这第一个月会决定你后面四年的底色。",
       "options": [
         "加入 1-2 个感兴趣的社团，活跃社交",
         "专注学业，争取保研",
         "做点小生意 / 接外包练手",
+        "跟室友抱团，深度经营小圈子",
+        "竞选班委/学生会",
         "躺平享受大学生活"
       ]
     },
@@ -20,17 +22,67 @@
       "type": "milestone",
       "stage": "freshman",
       "title": "期末考试周：高数/线代挂了没？",
-      "description": "第一次大学考试。结果出了。绩点会决定以后很多事。",
+      "description": "第一次大学考试。结果出了。绩点会决定以后很多事——保研、出国、考研，甚至第一份工作的简历筛选。",
       "options": [
         "这学期就突击，下学期好好学",
         "彻底放弃这门，专注其他课和实践",
         "找学长学姐要复习资料和往年题",
-        "直接申请补考/重修"
+        "直接申请补考/重修",
+        "刷题海战术，3 天不睡",
+        "找家教一对一突击"
+      ]
+    },
+    {
+      "id": "freshman_roommate_conflict",
+      "trigger_age": 18.7,
+      "type": "crisis",
+      "stage": "freshman",
+      "title": "室友矛盾：作息/卫生/带朋友",
+      "description": "你跟其中一个室友的冲突到了临界点。宿舍四个人现在分两派。",
+      "options": [
+        "主动找他谈一次，把话说开",
+        "冷战，等他自己想通",
+        "申请换宿舍",
+        "拉拢另外两个室友孤立他",
+        "找辅导员调解",
+        "忍着，毕业就解脱了"
+      ]
+    },
+    {
+      "id": "freshman_summer",
+      "trigger_age": 18.9,
+      "type": "crossroads",
+      "stage": "freshman",
+      "title": "大一暑假：第一次长假期",
+      "description": "三个月暑假。你家里人希望你回家，但外面的世界在叫你。",
+      "options": [
+        "回家，陪陪爸妈",
+        "留校做研究/跟老师做项目",
+        "去一线城市实习攒经验",
+        "出国旅游/游学",
+        "跟同学组队做点小项目",
+        "躺平休息，下学期再说"
+      ]
+    },
+    {
+      "id": "freshman_crush",
+      "trigger_age": 19.1,
+      "type": "crossroads",
+      "stage": "sophomore",
+      "title": "大学第一次心动",
+      "description": "TA 好像也对你有意思。但你现在的状态是：绩点要冲、社团要忙、未来还没想好。",
+      "options": [
+        "试试看，先不谈未来",
+        "先专注自己，等大三大四再说",
+        "认真投入，恋爱也是成长",
+        "保持距离，别影响自己节奏",
+        "表白，被拒就当练手",
+        "暧昧不清，享受当下"
       ]
     },
     {
       "id": "sophomore_competition",
-      "trigger_age": 19.0,
+      "trigger_age": 19.3,
       "type": "opportunity",
       "stage": "sophomore",
       "title": "大二：要不要参加一个大挑/互联网+比赛？",
@@ -39,21 +91,25 @@
         "加入，认真做，争取拿奖",
         "挂名参与，把主要精力放在 GPA",
         "不参加，大二要把基础打牢",
-        "自己组队做点不一样的项目"
+        "自己组队做点不一样的项目",
+        "参加，但同时保护好绩点",
+        "做技术骨干，把队长让给学长"
       ]
     },
     {
       "id": "sophomore_relationship",
-      "trigger_age": 19.3,
+      "trigger_age": 19.5,
       "type": "crossroads",
       "stage": "sophomore",
-      "title": "暧昧对象出现了",
-      "description": "TA 好像也对你有意思。但你现在的状态是：绩点要冲、社团要忙、未来还没想好。",
+      "title": "跟 TA 交往半年了",
+      "description": "感情稳定了，但开始暴露三观差异：消费观、未来规划、家庭背景。",
       "options": [
-        "试试看，先不谈未来",
-        "先专注自己，等大三大四再说",
-        "认真投入，恋爱也是成长",
-        "保持距离，别影响自己节奏"
+        "开诚布公谈一次",
+        "先处着，等分歧出现再处理",
+        "开始考虑未来能不能一起",
+        "找朋友/家人倾诉，参考意见",
+        "冷静一个月，看清自己真实想法",
+        "为了不影响其他事，先放下"
       ]
     },
     {
@@ -67,7 +123,25 @@
         "去，提前接触行业",
         "暑假回家休息 / 出去玩",
         "申请大厂实习（但可能要刷题）",
-        "留校做科研项目"
+        "留校做科研项目",
+        "自己投 5-10 份简历海投",
+        "去，但要谈点实习工资"
+      ]
+    },
+    {
+      "id": "sophomore_study_abroad",
+      "trigger_age": 19.9,
+      "type": "opportunity",
+      "stage": "sophomore",
+      "title": "大二：交换生项目要不要报名？",
+      "description": "学校有去美国/欧洲/日本交换一学期的项目。学费翻倍，但能开眼界+练语言+可能拿到推荐信。",
+      "options": [
+        "报名，冲一冲",
+        "费用太高，算了",
+        "想交换但家里不支持",
+        "等研究生再出国更值",
+        "看学校排名决定",
+        "学语言先，交换的事大三再说"
       ]
     },
     {
@@ -81,7 +155,9 @@
         "保研本校（稳妥但天花板有限）",
         "考研冲 985 头部（高风险高收益）",
         "申请出国读研（费用大、回报看学校）",
-        "直接工作，本科先入行"
+        "直接工作，本科先入行",
+        "gap 一年想清楚再决定",
+        "先考研再考虑出国做两手"
       ]
     },
     {
@@ -95,7 +171,41 @@
         "选水的好过，省时间做其他事",
         "选热门的，跟同学竞争",
         "选冷门深入，赌未来能用上",
-        "自己提一个方向，跟导师磨"
+        "自己提一个方向，跟导师磨",
+        "找学长/师姐带，做过的事稳",
+        "做横跨两个方向，差异化"
+      ]
+    },
+    {
+      "id": "junior_breakup",
+      "trigger_age": 20.7,
+      "type": "crisis",
+      "stage": "junior",
+      "title": "分手",
+      "description": "两年的感情结束了。现在大三关键期，你没法装作没事。",
+      "options": [
+        "给自己一个月时间悲伤，然后全力学习",
+        "找朋友倾诉，密集社交挺过去",
+        "做心理咨询（学校免费）",
+        "拿工作/学习把自己填满",
+        "开始新的感情，转移注意力",
+        "一个人去旅行，换个环境"
+      ]
+    },
+    {
+      "id": "junior_internship_2",
+      "trigger_age": 20.9,
+      "type": "opportunity",
+      "stage": "junior",
+      "title": "大三暑假：实习/科研/出国？",
+      "description": "你得为明年秋招或者申请积累筹码。",
+      "options": [
+        "去大厂实习，简历上好看",
+        "去 startup 学得多",
+        "留校做科研，发论文",
+        "出国暑研（暑校/暑研）",
+        "远程实习，省房租",
+        "什么都不做，全力准备考研/申请"
       ]
     },
     {
@@ -109,7 +219,25 @@
         "接工作，先赚钱先入行",
         "读研，再刷 2-3 年学历",
         "拖一拖看能不能等更好的",
-        "先工作几年再考虑读书"
+        "先工作几年再考虑读书",
+        "边工作边申请出国",
+        "GAP 半年再想"
+      ]
+    },
+    {
+      "id": "senior_grad_trip",
+      "trigger_age": 21.2,
+      "type": "milestone",
+      "stage": "senior",
+      "title": "毕业旅行：跟谁去？去哪？",
+      "description": "大学最后一次集体活动。室友、TA、朋友、自己，每个人都在叫你。",
+      "options": [
+        "跟最好的朋友去",
+        "带 TA 来一次长途",
+        "自己一个人去远方",
+        "回家陪爸妈",
+        "省下钱存着",
+        "跟全班去一次大团建"
       ]
     },
     {
@@ -123,39 +251,45 @@
         "去大厂镀金，卷 2-3 年再跳",
         "进国企/体制，求稳定",
         "加入早期创业公司，拿期权",
-        "先 gap 半年想清楚"
+        "先 gap 半年想清楚",
+        "去咨询/投行，磨技能",
+        "考公务员"
       ]
     },
     {
-      "id": "early_career_overtime",
+      "id": "grad_overtime",
       "trigger_age": 22.5,
       "type": "crisis",
-      "stage": "early_career",
+      "stage": "grad_school_or_first_job",
       "title": "入职 6 个月：996 实在扛不住",
       "description": "身体报警，体检报告亮红灯。leader 暗示你不卷就走人。",
       "options": [
         "再撑一下，等年终奖",
         "裸辞，给自己 1 个月休整",
         "申请转组 / 转岗",
-        "看机会开始面试下家"
+        "看机会开始面试下家",
+        "跟 leader 谈降低工作强度",
+        "考个在职研究生换轨道"
       ]
     },
     {
-      "id": "early_career_relationship_2",
+      "id": "grad_relationship_2",
       "trigger_age": 23.0,
       "type": "crossroads",
-      "stage": "early_career",
+      "stage": "grad_school_or_first_job",
       "title": "交往 1 年的人：要不要见家长？",
       "description": "感情稳定，但对方在老家城市有编制，你在一线。双方父母开始问。",
       "options": [
         "先见家长，让父母放心",
         "再等等，工作还没稳定",
         "坦诚谈一次未来规划",
-        "拖着，回避这个话题"
+        "拖着，回避这个话题",
+        "开始考虑为了 TA 换城市",
+        "认真评估这段关系是否值得"
       ]
     },
     {
-      "id": "early_career_cert",
+      "id": "grad_cert",
       "trigger_age": 23.5,
       "type": "opportunity",
       "stage": "early_career",
@@ -165,11 +299,29 @@
         "报名，认真备考 6 个月",
         "考个简单的，复杂的等以后",
         "不考，把时间花在工作表现上",
-        "考，但主要为了跳槽用"
+        "考，但主要为了跳槽用",
+        "拉同事组队一起考",
+        "报个班系统学"
       ]
     },
     {
-      "id": "early_career_house",
+      "id": "grad_career_pivot",
+      "trigger_age": 23.8,
+      "type": "opportunity",
+      "stage": "early_career",
+      "title": "老同事拉你跳到新行业",
+      "description": "他现在某 AI 创业公司，团队扩招，强烈推荐你。薪资 +30%，但要从头学。",
+      "options": [
+        "去，新行业有红利",
+        "不去，再观察 3 个月",
+        "先聊聊，了解清楚团队和资金",
+        "现在行业还没稳，等等再跳",
+        "自己投新行业的其他公司",
+        "再待 1 年攒经验再走"
+      ]
+    },
+    {
+      "id": "early_house",
       "trigger_age": 24.0,
       "type": "crossroads",
       "stage": "early_career",
@@ -179,12 +331,94 @@
         "咬咬牙上一线老破小",
         "退而求其次买新一线",
         "先租房，钱留着投资自己",
-        "看另一半意见，一起决定"
+        "看另一半意见，一起决定",
+        "等房价跌（但可能继续涨）",
+        "看老家能不能买"
       ]
     },
     {
-      "id": "career_growth_pivot",
+      "id": "early_pet",
+      "trigger_age": 24.2,
+      "type": "milestone",
+      "stage": "early_career",
+      "title": "想养只猫/狗",
+      "description": "你一个人住，每天下班回家有点空。养宠物能让生活不一样——但也要时间和钱。",
+      "options": [
+        "养猫，独立不粘人",
+        "养狗，需要溜",
+        "先云养，观望一下",
+        "等另一半一起决定",
+        "养个小众的（仓鼠/爬宠）",
+        "先搬家找大点的房子再说"
+      ]
+    },
+    {
+      "id": "early_side_hustle",
+      "trigger_age": 24.5,
+      "type": "opportunity",
+      "stage": "early_career",
+      "title": "下班时间开始接私活/做副业",
+      "description": "你的技能可以变现。一个月多 5000-20000，但要牺牲休息时间。",
+      "options": [
+        "接单赚钱，积累客户",
+        "做内容/自媒体，长期投资",
+        "做付费课程/咨询",
+        "不上班太累，副业轻一点",
+        "攒够第一桶金就停",
+        "用副业试错找新方向"
+      ]
+    },
+    {
+      "id": "early_friend_wedding",
+      "trigger_age": 24.8,
+      "type": "milestone",
+      "stage": "early_career",
+      "title": "好朋友要结婚了",
+      "description": "你 24 岁，朋友圈里开始有人结婚。份子钱 2000-5000，还要飞回去参加。",
+      "options": [
+        "参加，好好珍惜这段友情",
+        "人不到礼到",
+        "请假太麻烦，看看直播",
+        "开始认真想自己的婚事",
+        "趁机组个同学聚会",
+        "随份子要量力而行"
+      ]
+    },
+    {
+      "id": "early_health",
       "trigger_age": 25.0,
+      "type": "crisis",
+      "stage": "early_career",
+      "title": "体检异常：医生要求复查",
+      "description": "甲状腺/乳腺/某项指标异常。需要请假做进一步检查。",
+      "options": [
+        "马上请假复查",
+        "等季度末忙完再去",
+        "换一家医院二次诊断",
+        "调整生活方式 + 复查",
+        "做最贵的全面体检",
+        "问当医生的朋友意见"
+      ]
+    },
+    {
+      "id": "early_marriage_pressure",
+      "trigger_age": 25.2,
+      "type": "crisis",
+      "stage": "career_growth",
+      "title": "被家里疯狂催婚",
+      "description": "爸妈的电话里 50% 在问你有没有对象/什么时候结婚。春节回家变成酷刑。",
+      "options": [
+        "明确告诉爸妈：30 岁前不考虑",
+        "妥协，开始相亲",
+        "把 TA 带回家让爸妈放心",
+        "反向给爸妈安排事做",
+        "少回家，避免正面冲突",
+        "找亲戚里开明的人帮忙说服"
+      ]
+    },
+    {
+      "id": "career_pivot",
+      "trigger_age": 25.5,
       "type": "crossroads",
       "stage": "career_growth",
       "title": "工作 3 年：一个跨行业的机会",
@@ -193,25 +427,13 @@
         "跳，高薪高位",
         "不跳，本行业再深耕",
         "先聊一下，了解清楚再决定",
-        "考虑出国读个 MBA 镀金"
+        "考虑出国读个 MBA 镀金",
+        "再待一年观察行业",
+        "先业余时间学新行业"
       ]
     },
     {
-      "id": "career_growth_health",
-      "trigger_age": 25.5,
-      "type": "crisis",
-      "stage": "career_growth",
-      "title": "体检异常：医生要求复查",
-      "description": "甲状腺/乳腺/某项指标异常。需要请假做进一步检查。",
-      "options": [
-        "马上请假复查",
-        "等季度末忙完再去",
-        "换一家医院二次诊断",
-        "调整生活方式 + 复查"
-      ]
-    },
-    {
-      "id": "career_growth_marriage",
+      "id": "career_relationship_marriage",
       "trigger_age": 26.0,
       "type": "crossroads",
       "stage": "career_growth",
@@ -221,11 +443,61 @@
         "结婚，简单办",
         "再等等，先买房",
         "坦诚说还想再拼 2 年",
-        "先领证，仪式以后再说"
+        "先领证，仪式以后再说",
+        "跟 TA 一起做未来规划",
+        "裸婚，仪式以后有钱再补"
       ]
     },
     {
-      "id": "career_growth_startup",
+      "id": "career_skill_2027",
+      "trigger_age": 26.3,
+      "type": "opportunity",
+      "stage": "career_growth",
+      "title": "AI 浪潮：要不要转型学 AI 工程？",
+      "description": "公司开始用 LLM 重构产品。外面同学转 AI 工程的，普遍 +50% 薪资。",
+      "options": [
+        "all in 转 AI",
+        "边工作边学，半年转型",
+        "观望，看 AI 是不是泡沫",
+        "不转，本职做好就行",
+        "做一个 AI 副业试水",
+        "学 AI 但不离职"
+      ]
+    },
+    {
+      "id": "career_investment",
+      "trigger_age": 26.5,
+      "type": "opportunity",
+      "stage": "career_growth",
+      "title": "手上有 30W 闲钱：怎么投？",
+      "description": "存银行利率太低。股票、基金、币、房产首付，你得选。",
+      "options": [
+        "指数基金定投",
+        "all in 几个看好的股票",
+        "买房首付，加杠杆",
+        "放余额宝保守",
+        "做点小投资试试水",
+        "给自己投资（学习/技能）"
+      ]
+    },
+    {
+      "id": "career_friendship",
+      "trigger_age": 26.8,
+      "type": "crisis",
+      "stage": "career_growth",
+      "title": "好朋友渐行渐远",
+      "description": "你和大学最好的兄弟一年没见面了。结婚有娃了，话题都不一样了。",
+      "options": [
+        "主动约一次，老友情要维护",
+        "接受大家都在变化",
+        "找他聊一次，问问近况",
+        "找新朋友",
+        "线上高频互动（游戏/语音）",
+        "等一个重要节点再聚"
+      ]
+    },
+    {
+      "id": "career_startup",
       "trigger_age": 27.0,
       "type": "opportunity",
       "stage": "career_growth",
@@ -235,12 +507,14 @@
         "加入，all in",
         "做兼职顾问，先观察",
         "婉拒，现在风险太大",
-        "先谈好退出机制再考虑"
+        "先谈好退出机制再考虑",
+        "自己当 CEO 不当下属",
+        "考虑 6 个月试用期"
       ]
     },
     {
-      "id": "career_settling_promotion",
-      "trigger_age": 28.0,
+      "id": "settling_promotion",
+      "trigger_age": 27.5,
       "type": "milestone",
       "stage": "career_settling",
       "title": "升 P7 / 高级工程师 / 经理",
@@ -249,12 +523,14 @@
         "接，开始转型管理",
         "只要 title 不带人，继续做技术",
         "先带 3 个月试试",
-        "提条件：薪资 + 招聘名额"
+        "提条件：薪资 + 招聘名额",
+        "升职但内部转岗，找新方向",
+        "先做 staff/principal 不管人"
       ]
     },
     {
-      "id": "career_settling_parents",
-      "trigger_age": 28.5,
+      "id": "settling_parents",
+      "trigger_age": 28.0,
       "type": "crisis",
       "stage": "career_settling",
       "title": "父母身体出问题了",
@@ -263,12 +539,14 @@
         "请假回去陪护",
         "远程处理，请护工",
         "考虑回离家近的城市",
-        "看情况，能请多久请多久"
+        "看情况，能请多久请多久",
+        "跟父母坦白工作强度大",
+        "做长期规划：要不要接父母到身边"
       ]
     },
     {
-      "id": "career_settling_child",
-      "trigger_age": 29.0,
+      "id": "settling_child",
+      "trigger_age": 28.5,
       "type": "crossroads",
       "stage": "career_settling",
       "title": "要不要孩子？",
@@ -277,12 +555,78 @@
         "要，趁年轻恢复快",
         "再等 2 年，等事业稳一点",
         "丁克，做这个决定不容易但要坦诚",
-        "先做试管冻卵，留个后路"
+        "先做试管冻卵，留个后路",
+        "领养/不要自己的孩子",
+        "父母帮带，考虑送回老家"
       ]
     },
     {
-      "id": "career_settling_30_crisis",
-      "trigger_age": 29.7,
+      "id": "settling_friends_kids",
+      "trigger_age": 28.7,
+      "type": "milestone",
+      "stage": "career_settling",
+      "title": "朋友圈进入「晒娃时代」",
+      "description": "同龄人都在晒娃。你 28 岁还没孩子，被问「什么时候要」成日常。",
+      "options": [
+        "屏蔽朋友圈一段时间",
+        "正常看，不被影响",
+        "主动组织无娃局",
+        "开始认真想要不要",
+        "加入丁克社群",
+        "跟 TA 深度讨论一次"
+      ]
+    },
+    {
+      "id": "settling_hobby",
+      "trigger_age": 29.0,
+      "type": "milestone",
+      "stage": "career_settling",
+      "title": "想发展一个真正的爱好",
+      "description": "工作 5 年了，你意识到自己没爱好。摄影/跑步/乐器/书法/烹饪/登山/游戏主播……",
+      "options": [
+        "开始跑步/健身",
+        "学一门乐器",
+        "学摄影/视频",
+        "读万卷书不如行万里路",
+        "开直播/做内容",
+        "学做饭/咖啡/调酒"
+      ]
+    },
+    {
+      "id": "settling_relocate",
+      "trigger_age": 29.3,
+      "type": "crossroads",
+      "stage": "career_settling",
+      "title": "要不要换城市？",
+      "description": "公司 offer：去杭州/深圳/成都，薪资 +20%。但要离开北京的朋友圈和积累。",
+      "options": [
+        "去，新城市新机会",
+        "不去，关系网都在这",
+        "跟 TA 商量",
+        "先出差 3 个月体验",
+        "看未来 5 年的发展规划",
+        "远程办公试试"
+      ]
+    },
+    {
+      "id": "settling_mentor",
+      "trigger_age": 29.5,
+      "type": "opportunity",
+      "stage": "career_settling",
+      "title": "被邀请做校园分享 / 行业导师",
+      "description": "你的经验对在校生有价值。学校请你做分享，公司让你带实习生。",
+      "options": [
+        "接，输出倒逼输入",
+        "婉拒，太花时间",
+        "一年做 1-2 次",
+        "写公众号/知乎替代",
+        "只接付费分享",
+        "跟公司谈，把这个当 OKR"
+      ]
+    },
+    {
+      "id": "settling_30_crisis",
+      "trigger_age": 29.8,
       "type": "crisis",
       "stage": "career_settling",
       "title": "30 岁前夕：天花板还是天花板？",
@@ -291,7 +635,9 @@
         "再冲一次，看能不能突破",
         "接受现状，专注生活",
         "换城市换赛道，从头来",
-        "出国/留学，重新开始"
+        "出国/留学，重新开始",
+        "做心理咨询，认真想清楚",
+        "找导师/前辈聊聊"
       ]
     }
   ],
@@ -301,23 +647,23 @@
       "type": "crisis",
       "title": "感冒发烧 1 周",
       "description": "身体敲警钟。",
-      "options": ["请假休息", "硬抗", "去看医生", "调养一周"],
-      "weight": 0.05
+      "options": ["请假休息", "硬抗", "去看医生", "调养一周", "加强锻炼", "查查为什么老生病"],
+      "weight": 0.04
     },
     {
       "id": "r_money_gift",
       "type": "opportunity",
       "title": "意外来财",
-      "description": "奖学金 / 项目奖金 / 退稅，1-3 万。",
-      "options": ["存起来", "投资自己", "给家里", "犒劳自己"],
-      "weight": 0.05
+      "description": "奖学金 / 项目奖金 / 退税，1-3 万。",
+      "options": ["存起来", "投资自己", "给家里", "犒劳自己", "做理财", "跟朋友庆祝"],
+      "weight": 0.04
     },
     {
       "id": "r_friend_quarrel",
       "type": "crisis",
       "title": "好朋友闹掰了",
       "description": "因为钱/观念/TA 男/女朋友，关系突然变僵。",
-      "options": ["主动和好", "冷处理", "断交", "找第三方调解"],
+      "options": ["主动和好", "冷处理", "断交", "找第三方调解", "等时间治愈", "开诚布公谈一次"],
       "weight": 0.04
     },
     {
@@ -325,15 +671,15 @@
       "type": "opportunity",
       "title": "遇到一个有意思的人",
       "description": "可能成为导师、合伙人、伴侣。",
-      "options": ["主动联系", "保持距离观察", "投入时间精力", "随缘"],
-      "weight": 0.05
+      "options": ["主动联系", "保持距离观察", "投入时间精力", "随缘", "请 TA 吃饭", "保持联系但不急"],
+      "weight": 0.04
     },
     {
       "id": "r_industry_layoff",
       "type": "crisis",
       "title": "公司开始裁员",
       "description": "你不在名单上，但同事走了，氛围变了。",
-      "options": ["赶紧看机会", "埋头干活", "趁机争取资源", "等赔偿"],
+      "options": ["赶紧看机会", "埋头干活", "趁机争取资源", "等赔偿", "找 leader 表忠心", "内部转岗"],
       "weight": 0.04
     },
     {
@@ -341,16 +687,40 @@
       "type": "crisis",
       "title": "长期小毛病",
       "description": "失眠/胃痛/颈椎痛开始困扰你。",
-      "options": ["看医生", "自己调养", "继续忍着", "请假休整"],
-      "weight": 0.06
+      "options": ["看医生", "自己调养", "继续忍着", "请假休整", "看中医", "开始运动"],
+      "weight": 0.05
     },
     {
       "id": "r_industry_boom",
       "type": "opportunity",
       "title": "行业突然火了一把",
       "description": "你的赛道突然被资本/政策热捧。",
-      "options": ["抓住机会", "保持冷静", "趁机跳槽", "扩大优势"],
+      "options": ["抓住机会", "保持冷静", "趁机跳槽", "扩大优势", "all in", "看 1 年再说"],
       "weight": 0.04
+    },
+    {
+      "id": "r_unexpected_reunion",
+      "type": "milestone",
+      "title": "跟老朋友重逢",
+      "description": "在某个城市偶遇了 5 年没见的高中同学。",
+      "options": ["约顿饭叙旧", "保持联系", "帮 TA 介绍工作", "一起回忆过去", "看能不能合作", "慢慢来不急"],
+      "weight": 0.03
+    },
+    {
+      "id": "r_online_attack",
+      "type": "crisis",
+      "title": "被网暴 / 同事背刺",
+      "description": "你在社交媒体发了什么，或者被同事穿小鞋。",
+      "options": ["公开回应", "冷处理", "找朋友倾诉", "律师函", "默默忍", "反向营销"],
+      "weight": 0.02
+    },
+    {
+      "id": "r_passive_income",
+      "type": "opportunity",
+      "title": "突然有一笔被动收入",
+      "description": "版权 / 投资分红 / 知识付费。",
+      "options": ["存起来", "投资自己", "给家里", "犒劳自己", "做长期规划", "建立管道"],
+      "weight": 0.02
     }
   ]
 }

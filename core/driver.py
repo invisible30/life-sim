@@ -3,12 +3,13 @@
 每个季度：
 1. world.tick() 生成事件
 2. 决定是否召开董事会
-3. 执行决策 → 更新指标
-4. 记录历史
+3. 执行决策 → 更新指标 + 写连锁 flag
+4. 记录历史 + 写 progress.log
 """
 from __future__ import annotations
 
 import json
+import os
 import time
 from dataclasses import asdict
 from pathlib import Path
@@ -17,6 +18,32 @@ from typing import Any
 from core.state import LifeState, DecisionRecord
 from core.world import World, WorldEvent
 from meeting.council import Council
+
+
+# 决策选项 → 连锁 flag 映射（影响后续事件）
+OPTION_FLAG_MAP: list[dict[str, Any]] = [
+    {"match": ["保研", "考研", "读研", "出国", "留学", "MBA"], "flags": ["in_grad_school", "grad_recently"]},
+    {"match": ["结婚", "领证", "裸婚"], "flags": ["married_recently"]},
+    {"match": ["要孩子", "生孩子", "趁年轻", "要，趁年轻"], "flags": ["has_child"]},
+    {"match": ["创业", "all in", "全职", "加入创业"], "flags": ["in_startup"]},
+    {"match": ["工作", "入行", "入职", "接工作", "接 offer"], "flags": ["in_job", "grad_recently"]},
+    {"match": ["考公", "考编", "公务员", "体制"], "flags": ["in_civil_service"]},
+    {"match": ["gap", "休学", "GAP"], "flags": ["in_gap_year"]},
+    {"match": ["换城市", "去杭州", "去深圳", "去成都"], "flags": ["relocated"]},
+    {"match": ["买房", "上车"], "flags": ["home_owner"]},
+    {"match": ["养猫", "养狗"], "flags": ["has_pet"]},
+]
+
+
+def update_flags(state: LifeState, chosen: str) -> None:
+    """根据决策选项更新 state.flags"""
+    state.flags.add("decision_made")  # 通用 flag
+    for rule in OPTION_FLAG_MAP:
+        for kw in rule["match"]:
+            if kw in chosen:
+                for f in rule["flags"]:
+                    state.flags.add(f)
+                break
 
 
 # 决策选项 → 指标影响（粗略规则）
@@ -30,6 +57,8 @@ OPTION_EFFECTS: list[dict[str, Any]] = [
             "free_hours_weekly": -10,
             "meaning_score": -3,
             "regret_index": -2,
+            "skill_depth": +10,
+            "social_capital": +5,
         },
     },
     {
@@ -40,6 +69,8 @@ OPTION_EFFECTS: list[dict[str, Any]] = [
             "free_hours_weekly": -15,
             "physical_health": -3,
             "mental_health": -2,
+            "skill_depth": +5,
+            "social_capital": +3,
         },
     },
     {
@@ -53,12 +84,15 @@ OPTION_EFFECTS: list[dict[str, Any]] = [
             "mental_health": -8,
             "meaning_score": +10,
             "regret_index": -5,
+            "skill_depth": +8,
+            "social_capital": +10,
         },
     },
     {
         "match": ["结婚", "领证", "要孩子", "生孩子"],
         "effects": {
             "relationship_density": +20,
+            "romantic_health": +30,
             "net_worth": -10,
             "free_hours_weekly": -15,
             "meaning_score": +5,
@@ -74,9 +108,10 @@ OPTION_EFFECTS: list[dict[str, Any]] = [
         },
     },
     {
-        "match": ["社团", "社交", "恋爱", "在一起", "结婚"],
+        "match": ["社团", "社交", "恋爱", "在一起"],
         "effects": {
             "relationship_density": +10,
+            "romantic_health": +5,
             "free_hours_weekly": -5,
         },
     },
@@ -85,6 +120,7 @@ OPTION_EFFECTS: list[dict[str, Any]] = [
         "effects": {
             "physical_health": +10,
             "mental_health": +8,
+            "physical_energy": +15,
             "free_hours_weekly": +10,
             "net_worth": -2,
         },
@@ -95,6 +131,7 @@ OPTION_EFFECTS: list[dict[str, Any]] = [
             "cash_flow_monthly": -1.5,
             "net_worth": -3,
             "mental_health": +5,
+            "physical_energy": +10,
             "regret_index": +2,
         },
     },
@@ -105,6 +142,8 @@ OPTION_EFFECTS: list[dict[str, Any]] = [
             "career_income_yearly": -3,
             "free_hours_weekly": +15,
             "mental_health": +5,
+            "physical_energy": +10,
+            "social_capital": +5,
         },
     },
     {
@@ -112,6 +151,7 @@ OPTION_EFFECTS: list[dict[str, Any]] = [
         "effects": {
             "physical_health": +5,
             "mental_health": +3,
+            "physical_energy": +10,
         },
     },
     {
@@ -119,10 +159,11 @@ OPTION_EFFECTS: list[dict[str, Any]] = [
         "effects": {
             "career_level": +2,
             "relationship_density": +3,
+            "skill_depth": +2,
         },
     },
     {
-        "match": ["不参加", "不加入", "放弃", "不", "拒绝", "婉拒"],
+        "match": ["不参加", "不加入", "放弃", "拒绝", "婉拒"],
         "effects": {
             "regret_index": +1,
         },
@@ -133,15 +174,50 @@ OPTION_EFFECTS: list[dict[str, Any]] = [
             "regret_index": +2,
         },
     },
+    {
+        "match": ["换城市", "去杭州", "去深圳", "去成都", "relocate"],
+        "effects": {
+            "social_capital": -8,
+            "relationship_density": -5,
+            "career_level": +3,
+            "career_income_yearly": +2,
+        },
+    },
+    {
+        "match": ["养猫", "养狗", "养宠物"],
+        "effects": {
+            "mental_health": +5,
+            "physical_energy": +3,
+            "free_hours_weekly": -3,
+        },
+    },
+    {
+        "match": ["副业", "私活", "自媒体", "内容", "直播"],
+        "effects": {
+            "career_income_yearly": +3,
+            "free_hours_weekly": -10,
+            "skill_depth": +3,
+            "social_capital": +2,
+            "physical_energy": -5,
+        },
+    },
+    {
+        "match": ["兴趣", "爱好", "跑步", "健身", "摄影", "乐器"],
+        "effects": {
+            "physical_energy": +10,
+            "mental_health": +5,
+            "meaning_score": +5,
+        },
+    },
 ]
 
 
 # 事件类型默认影响
 TYPE_EFFECTS = {
-    "milestone": {"regret_index": -1},
-    "opportunity": {"regret_index": -2},
-    "crisis": {"physical_health": -2, "mental_health": -2},
-    "crossroads": {},
+    "milestone": {"regret_index": -1, "skill_depth": +1},
+    "opportunity": {"regret_index": -2, "social_capital": +1},
+    "crisis": {"physical_health": -2, "mental_health": -2, "physical_energy": -3},
+    "crossroads": {"meaning_score": +1},
 }
 
 
@@ -155,7 +231,7 @@ ECONOMY_EFFECTS = {
 
 
 def apply_effects(metrics_obj, effects: dict[str, float]) -> None:
-    """应用效果到 LifeMetrics"""
+    """应用效果到 LifeMetrics（14 项）"""
     for k, v in effects.items():
         if k == "net_worth":
             metrics_obj.net_worth += v
@@ -167,6 +243,8 @@ def apply_effects(metrics_obj, effects: dict[str, float]) -> None:
             metrics_obj.mental_health = max(0, min(100, metrics_obj.mental_health + v))
         elif k == "relationship_density":
             metrics_obj.relationship_density = max(0, min(100, metrics_obj.relationship_density + v))
+        elif k == "romantic_health":
+            metrics_obj.romantic_health = max(0, min(100, metrics_obj.romantic_health + v))
         elif k == "career_level":
             metrics_obj.career_level = max(0, min(100, metrics_obj.career_level + v))
         elif k == "career_income_yearly":
@@ -177,6 +255,12 @@ def apply_effects(metrics_obj, effects: dict[str, float]) -> None:
             metrics_obj.meaning_score = max(0, min(100, metrics_obj.meaning_score + v))
         elif k == "regret_index":
             metrics_obj.regret_index = max(0, metrics_obj.regret_index + v)
+        elif k == "skill_depth":
+            metrics_obj.skill_depth = max(0, min(100, metrics_obj.skill_depth + v))
+        elif k == "social_capital":
+            metrics_obj.social_capital = max(0, min(100, metrics_obj.social_capital + v))
+        elif k == "physical_energy":
+            metrics_obj.physical_energy = max(0, min(100, metrics_obj.physical_energy + v))
 
 
 def compute_decision_effects(decision: DecisionRecord) -> dict[str, float]:
@@ -211,7 +295,36 @@ class Driver:
         """跑完所有季度"""
         for q in range(self.start_quarter, self.end_quarter):
             await self.tick_quarter(q, quiet=quiet)
+            self._write_progress()
         return self.state.decisions
+    
+    def _write_progress(self) -> None:
+        """写 progress.log 行（tail -f 可看）"""
+        path = os.environ.get("LIFE_PROGRESS_LOG", "")
+        if not path:
+            return
+        try:
+            m = self.state.metrics
+            line = json.dumps({
+                "ts": time.time(),
+                "q": self.state.current_quarter,
+                "age": round(self.state.current_age, 2),
+                "stage": self.state.life_stage,
+                "decisions": len(self.state.decisions),
+                "last_title": self.state.decisions[-1].event_title if self.state.decisions else "",
+                "last_chosen": self.state.decisions[-1].chosen if self.state.decisions else "",
+                "net_worth": round(m.net_worth, 1),
+                "income": round(m.career_income_yearly, 1),
+                "career": round(m.career_level, 1),
+                "health": round(m.physical_health, 0),
+                "mental": round(m.mental_health, 0),
+                "meaning": round(m.meaning_score, 0),
+                "flags": sorted(self.state.flags),
+            }, ensure_ascii=False)
+            with open(path, "a", encoding="utf-8") as f:
+                f.write(line + "\n")
+        except Exception:
+            pass
     
     async def tick_quarter(self, q: int, quiet: bool = False) -> None:
         """一个季度"""
@@ -246,10 +359,11 @@ class Driver:
                     sys.stdout.write(msg)
                     sys.stdout.flush()
         
-        # 3. 应用 effects
+        # 3. 应用 effects + 写连锁 flag
         if decision:
             effects = compute_decision_effects(decision)
             apply_effects(self.state.metrics, effects)
+            update_flags(self.state, decision.chosen)
             decision.outcome = _summarize_outcome(self.state, effects)
         
         # 4. 经济周期基础影响

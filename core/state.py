@@ -71,17 +71,27 @@ class Person:
 
 @dataclass
 class LifeMetrics:
-    """7 项人生指标，每项 0-100"""
-    net_worth: float = 0.0       # 净资产（万元）
-    cash_flow_monthly: float = 0.0  # 月现金流（万元）
-    physical_health: float = 80.0
-    mental_health: float = 80.0
-    relationship_density: float = 50.0  # 关系网密度
-    career_level: float = 20.0     # 事业等级
-    career_income_yearly: float = 0.0  # 年收入（万元）
+    """14 项人生指标：财务 2 + 健康 2 + 关系 2 + 事业 2 + 自由 1 + 心理 2 + 技能/资本 3"""
+    # 财务
+    net_worth: float = 0.0            # 净资产（万元）
+    cash_flow_monthly: float = 0.0    # 月现金流（万元）
+    # 健康
+    physical_health: float = 80.0     # 身体健康
+    mental_health: float = 80.0        # 心理健康
+    # 关系
+    relationship_density: float = 50.0 # 关系网密度
+    romantic_health: float = 50.0     # 感情满意度（0-100）
+    # 事业
+    career_level: float = 20.0        # 事业等级
+    career_income_yearly: float = 0.0 # 年收入（万元）
+    # 自由 / 心理
     free_hours_weekly: float = 60.0   # 周自由时间
-    meaning_score: float = 60.0      # 心流 / 意义感
-    regret_index: float = 0.0        # 后悔指数（累积）
+    meaning_score: float = 60.0        # 心流 / 意义感
+    regret_index: float = 0.0          # 后悔指数（累积）
+    # 技能 / 资本
+    skill_depth: float = 30.0          # 专业技能深度（0-100）
+    social_capital: float = 20.0       # 社会资本（行业地位 + 人脉）
+    physical_energy: float = 75.0      # 体能/精力（区别于 health）
     
     def as_dict(self) -> dict[str, float]:
         return {
@@ -90,12 +100,19 @@ class LifeMetrics:
             "身体健康": round(self.physical_health, 1),
             "心理健康": round(self.mental_health, 1),
             "关系网密度": round(self.relationship_density, 1),
+            "感情满意度": round(self.romantic_health, 1),
             "事业等级": round(self.career_level, 1),
             "年收入(万)": round(self.career_income_yearly, 1),
             "周自由小时": round(self.free_hours_weekly, 1),
             "意义感": round(self.meaning_score, 1),
             "后悔指数": round(self.regret_index, 1),
+            "技能深度": round(self.skill_depth, 1),
+            "社会资本": round(self.social_capital, 1),
+            "体能精力": round(self.physical_energy, 1),
         }
+    
+    def all_fields(self) -> list[str]:
+        return list(self.as_dict().keys())
 
 
 @dataclass

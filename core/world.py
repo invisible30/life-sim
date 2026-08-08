@@ -62,7 +62,8 @@ class World:
         events: list[WorldEvent] = []
         age = self.state.current_age
         
-        # 1. 检查预设 milestone
+        # 1. 检查预设 milestone（带连锁优先级）
+        # 如果有 flag 匹配某个 milestone，优先触发它
         for ms in self.milestones:
             if ms["id"] in self._fired:
                 continue
@@ -79,7 +80,12 @@ class World:
                 # 一次只发 1 个随机事件
                 break
         
-        # 3. 经济周期更新
+        # 3. 连锁事件（基于之前决策生成的 flag）
+        chain = self._chain_event()
+        if chain and not events:
+            events.append(chain)
+        
+        # 4. 经济周期更新
         self.economy_counter += 1
         if self.economy_counter > 12:
             self.economy_counter = 0
@@ -87,6 +93,76 @@ class World:
             self.economy_phase = self.rng.choice(phases)
         
         return events
+    
+    def _chain_event(self) -> WorldEvent | None:
+        """基于 state.flags 派生连锁事件
+        
+        每次决策后，driver 会分析 chosen 选项，写入 state.flags。
+        world 在下一个 tick 看到相关 flag 时，会追加一个紧跟的事件。
+        """
+        flags = self.state.flags
+        age = self.state.current_age
+        
+        # 毕业 → 找工作焦虑（如果还没 flag in_job）
+        if "in_job" not in flags and age > 22 and "grad_recently" in flags:
+            return self._mk_chain_event(
+                "chain_first_job_anxiety",
+                "milestone",
+                "刚毕业，还没稳定工作",
+                "毕业一个月了，简历投了几十份。offer 没几个，焦虑开始上来了。",
+                ["继续海投", "降低期望", "找实习过渡", "找朋友内推", "GAP 一个月", "做自由职业"],
+            )
+        
+        # 结婚 → 蜜月期问题
+        if "married_recently" in flags and age > 26:
+            return self._mk_chain_event(
+                "chain_marriage_reality",
+                "crisis",
+                "新婚磨合期",
+                "结婚 3-6 个月。开始暴露生活习惯差异：家务分配、消费观、跟朋友聚会频率。",
+                ["坐下来开家庭会议", "互相妥协", "先忍着", "看婚姻咨询师", "冷战几天", "自己找事做"],
+            )
+        
+        # 孩子 → 育儿压力
+        if "has_child" in flags and age > 28:
+            return self._mk_chain_event(
+                "chain_parenthood",
+                "crisis",
+                "新手父母",
+                "宝宝 3 个月大。每晚醒 4 次，白天上班，晚上带娃。",
+                ["请父母来帮忙", "请月嫂/育儿嫂", "换到轻松岗位", "咬牙撑过去", "跟公司谈弹性", "伴侣轮流请假"],
+            )
+        
+        # 创业 → 现金流紧张
+        if "in_startup" in flags and age > 27:
+            return self._mk_chain_event(
+                "chain_cash_crunch",
+                "crisis",
+                "创业 6 个月，钱快烧完了",
+                "账上资金只够撑 3 个月。下一轮融资还没着落。",
+                ["拼命找下一轮", "自己掏钱补", "砍人砍成本", "开始盈利", "卖给大公司", "认清现实关掉"],
+            )
+        
+        # 读研 → 论文压力
+        if "in_grad_school" in flags and age > 23:
+            return self._mk_chain_event(
+                "chain_thesis_pressure",
+                "milestone",
+                "研究生：开题/中期/答辩",
+                "导师催你推进。论文/项目/实习三选一。",
+                ["all in 论文", "找实习刷简历", "跟导师磨时间", "考虑转硕", "做横向赚钱", "退学工作"],
+            )
+        
+        return None
+    
+    def _mk_chain_event(self, event_id: str, etype: str, title: str, desc: str, options: list[str]) -> WorldEvent:
+        return WorldEvent(
+            id=event_id,
+            type=etype,
+            title=title,
+            description=desc,
+            options=options,
+        )
     
     def _mk_event(self, raw: dict[str, Any]) -> WorldEvent:
         desc = raw.get("description", "")

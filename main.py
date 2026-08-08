@@ -37,6 +37,14 @@ def load_config() -> dict:
 async def main():
     load_dotenv(ROOT / ".env")
     
+    # 实时进度日志路径（tail -f 可看）
+    progress_log = ROOT / "output" / "progress.log"
+    progress_log.parent.mkdir(parents=True, exist_ok=True)
+    if progress_log.exists():
+        progress_log.unlink()
+    os.environ["LIFE_PROGRESS_LOG"] = str(progress_log)
+    print(f"📊 实时进度: tail -f {progress_log}")
+    
     print("=" * 70)
     print("🧬 Life Sim — Multi-Agent 人生沙盘 (18-30)")
     print("=" * 70)

@@ -172,6 +172,14 @@ async def main():
     load_dotenv(ROOT / ".env")
     cfg = yaml.safe_load(open(ROOT / "config.yaml", encoding="utf-8"))
     
+    # 实时进度日志（tail -f 可看）
+    progress_log = ROOT / "output" / "progress.log"
+    progress_log.parent.mkdir(parents=True, exist_ok=True)
+    if progress_log.exists():
+        progress_log.unlink()
+    os.environ["LIFE_PROGRESS_LOG"] = str(progress_log)
+    print(f"📊 实时进度: tail -f {progress_log}")
+    
     # 一个 LLM 客户端，复用配额
     llm = LLMClient()
     print(f"🤖 LLM: {llm.cfg.model}, 上限 {llm.cfg.max_total_calls} 调用")
