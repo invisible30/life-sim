@@ -277,8 +277,9 @@ def _normalize_decision(d: Any) -> dict[str, Any]:
             "cls": _VOTE_CHIP_CLASS.get(weight, "neutral"),
             "label": _VOTE_CHIP_LABEL.get(weight, "?"),
         })
-        # Bar length is |weight| / 2 * 100% so it visually fits a 0-100% axis.
-        bar_pct = min(100.0, abs(weight) / 2.0 * 100.0)
+        # Bar length is |weight| / 2 * 50% so it fits in the half-axis
+        # (track is centered, left:50% means right half spans 50%-100%).
+        bar_pct = min(50.0, abs(weight) / 2.0 * 50.0)
         vote_bars.append({
             "agent": agent_key,
             "role": meta.get("role", agent_key),
