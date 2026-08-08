@@ -73,7 +73,7 @@ async def main():
     t0 = time.time()
     
     try:
-        driver.run(quiet=False)
+        await driver.run(quiet=False)
     except KeyboardInterrupt:
         print("\n⏸️  中断")
     

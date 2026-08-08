@@ -1,13 +1,7 @@
-from .state import (
-    Person, Personality, LifeMetrics, LifeState, DecisionRecord,
-    init_state_from_config,
-)
-from .world import World, WorldEvent
-from .driver import Driver, apply_effects, compute_decision_effects
+"""core module - import submodules explicitly to avoid circular deps.
 
-__all__ = [
-    "Person", "Personality", "LifeMetrics", "LifeState", "DecisionRecord",
-    "init_state_from_config",
-    "World", "WorldEvent",
-    "Driver", "apply_effects", "compute_decision_effects",
-]
+Recommended:
+    from core.state import init_state_from_config
+    from core.world import World
+    from core.driver import Driver
+"""

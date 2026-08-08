@@ -32,15 +32,15 @@ class LuckAgent(Agent):
     async def vote(self, agenda):
         options = agenda.get("options", [])
         if not options:
-            return AgentVote(agent=self.name, role=self.voice, option="", weight=0, reasoning="无选项")
+            return AgentVote(agent=self.name, role=self.voice, emoji=self.emoji, option="", weight=0, reasoning="无选项")
         rng = random.Random(self.state.seed * 17 + self.state.current_quarter + len(agenda.get('title','')))
         choice = rng.choice(options)
         # 50% 概率不投票 / 弃权
         if rng.random() < 0.5:
-            return AgentVote(agent=self.name, role=self.voice, option="", weight=0, reasoning="弃权")
+            return AgentVote(agent=self.name, role=self.voice, emoji=self.emoji, option="", weight=0, reasoning="弃权")
         # 弱随机权重
         weight = rng.choice([-1, 0, 1])
         return AgentVote(
-            agent=self.name, role=self.voice, option=choice, weight=weight,
+            agent=self.name, role=self.voice, emoji=self.emoji, option=choice, weight=weight,
             reasoning=f"（纯随机摇到 {choice}）",
         )

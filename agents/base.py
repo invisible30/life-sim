@@ -42,8 +42,9 @@ class AgentView:
 class AgentVote:
     agent: str
     role: str
-    option: str
-    weight: int  # -2 / -1 / 0 / 1 / 2
+    emoji: str = ""
+    option: str = ""
+    weight: int = 0  # -2 / -1 / 0 / 1 / 2
     reasoning: str = ""
 
 
@@ -171,6 +172,7 @@ class Agent(ABC):
         return AgentVote(
             agent=self.name,
             role=self.voice,
+            emoji=self.emoji,
             option=option,
             weight=weight,
             reasoning=reasoning,

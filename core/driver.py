@@ -207,13 +207,13 @@ class Driver:
         self.start_quarter = 0
         self.end_quarter = 48
     
-    def run(self, quiet: bool = False) -> list[DecisionRecord]:
+    async def run(self, quiet: bool = False) -> list[DecisionRecord]:
         """跑完所有季度"""
         for q in range(self.start_quarter, self.end_quarter):
-            self.tick_quarter(q, quiet=quiet)
+            await self.tick_quarter(q, quiet=quiet)
         return self.state.decisions
     
-    def tick_quarter(self, q: int, quiet: bool = False) -> None:
+    async def tick_quarter(self, q: int, quiet: bool = False) -> None:
         """一个季度"""
         self.state.current_quarter = q
         self.state.current_age = 18 + q * 0.25
@@ -228,7 +228,7 @@ class Driver:
             # 取第一个事件开会
             event = events[0]
             try:
-                decision = asyncio_run(self.council.hold(event))
+                decision = await self.council.hold(event)
                 self.state.decisions.append(decision)
                 # 各 agent 记住这次决策
                 for a in self.council.agents:
@@ -240,7 +240,11 @@ class Driver:
                     })
             except Exception as e:
                 if not quiet:
-                    print(f"  ⚠️  Q{q} council error: {e}")
+                    import traceback, sys
+                    msg = f"\n⚠️  Q{q} council error: {type(e).__name__}: {e}\n"
+                    msg += "".join(traceback.format_exception(type(e), e, e.__traceback__))
+                    sys.stdout.write(msg)
+                    sys.stdout.flush()
         
         # 3. 应用 effects
         if decision:
@@ -264,13 +268,12 @@ class Driver:
 
 
 def asyncio_run(coro):
-    """同步运行 async"""
+    """同步运行 async（仅在非 async 上下文里使用）"""
     import asyncio
     try:
         loop = asyncio.get_event_loop()
         if loop.is_running():
-            # 在已有 loop 里跑（不会发生在这）
-            return loop.run_until_complete(coro)
+            raise RuntimeError("Already in a running event loop; use 'await' instead.")
     except RuntimeError:
         pass
     return asyncio.run(coro)

@@ -16,7 +16,8 @@ import time
 from dataclasses import asdict
 from typing import Any
 
-from agents import Agent, AgentView, AgentVote, make_all_agents
+from agents.base import Agent, AgentView, AgentVote
+from agents import make_all_agents
 from core.state import LifeState, DecisionRecord
 from core.world import WorldEvent
 from llm.client import LLMClient
@@ -68,6 +69,10 @@ class Council:
         
         # 3. 投票（所有 agent 并发）
         votes = await self._vote_parallel(agenda)
+        # DEBUG: inspect votes
+        for v in votes:
+            if not hasattr(v, "emoji"):
+                raise RuntimeError(f"vote from {getattr(v, 'agent', '?')} has no emoji: {v!r}")
         
         # 4. 决策融合
         chosen, scores, abstained = self._fuse(agenda["options"], votes)
@@ -140,8 +145,24 @@ class Council:
         votes = []
         for a, r in zip(self.agents, results):
             if isinstance(r, Exception):
-                votes.append(AgentVote(agent=a.name, role=a.voice, option="", weight=0, reasoning=f"[ERROR: {r}]"))
+                votes.append(AgentVote(agent=a.name, role=a.voice, emoji=a.emoji, option="", weight=0, reasoning=f"[ERROR: {r}]"))
             else:
+                # ALWAYS ensure emoji is set
+                if not getattr(r, "emoji", None):
+                    try:
+                        r.emoji = a.emoji
+                    except Exception:
+                        raise RuntimeError(
+                            f"vote from agent={a.name!r} (class={type(a).__name__}) "
+                            f"has no emoji field and can't be patched. "
+                            f"vote class: {type(r).__name__}, "
+                            f"attrs: {sorted(vars(r).keys()) if hasattr(r, '__dict__') else 'no __dict__'}"
+                        )
+                # DEBUG
+                if not hasattr(r, "emoji"):
+                    import sys
+                    sys.stdout.write(f"  [debug] vote: agent={a.name}, type={type(r).__name__}, has_emoji=False, dict={vars(r) if hasattr(r,'__dict__') else 'no_dict'}\n")
+                    sys.stdout.flush()
                 votes.append(r)
         return votes
     
@@ -180,8 +201,12 @@ class Council:
             lines.append(f"{marker} {opt}: {sc:.2f}")
         lines.append("\n# 各方投票")
         for v in votes:
-            sign = {2: "++", 1: "+", 0: "0", -1: "-", -2: "--"}.get(v.weight, "?")
-            lines.append(f"- {v.emoji}{v.role} [{sign}] → {v.option or '弃权'}: {v.reasoning[:80]}")
+            sign = {2: "++", 1: "+", 0: "0", -1: "-", -2: "--"}.get(getattr(v, "weight", 0), "?")
+            emoji = getattr(v, "emoji", "")
+            role = getattr(v, "role", v.agent if hasattr(v, "agent") else "?")
+            opt = getattr(v, "option", "") or "弃权"
+            reason = getattr(v, "reasoning", "")[:80]
+            lines.append(f"- {emoji}{role} [{sign}] → {opt}: {reason}")
         return "\n".join(lines)
     
     def update_agent_weights(self, record: DecisionRecord, outcome: str) -> None:
