@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>{{ person.name }} - 18到30岁的人生沙盘</title>
+  <style>
+    /* clean, modern, dark theme; readable Chinese typography */
+    body { font-family: -apple-system, "PingFang SC", "Microsoft YaHei", "Source Han Sans CN", sans-serif;
+           background: #0f1419; color: #e6e6e6; max-width: 1100px; margin: 0 auto; padding: 32px; line-height: 1.55; }
+    h1, h2, h3 { color: #f0c674; }
+    h1 { font-size: 28px; margin: 0 0 8px 0; }
+    h2 { font-size: 22px; margin: 32px 0 16px 0; padding-bottom: 8px; border-bottom: 1px solid #2d3e50; }
+    p { margin: 4px 0; }
+    a { color: #f0c674; }
+    .hero { background: #1a2332; padding: 24px; border-radius: 12px; margin-bottom: 24px; }
+    .hero p { color: #b8c4d1; }
+    .hero .sub { color: #8a9bae; font-size: 14px; }
+    .metrics-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; }
+    .metric { background: #1a2332; padding: 16px; border-radius: 8px; text-align: center; }
+    .metric-value { font-size: 28px; color: #f0c674; font-weight: bold; }
+    .metric-label { color: #8a9bae; font-size: 13px; margin-top: 4px; }
+    .timeline { border-left: 2px solid #2d3e50; padding-left: 16px; margin: 16px 0; }
+    .timeline-item { margin-bottom: 24px; position: relative; }
+    .timeline-item::before { content: ''; position: absolute; left: -22px; top: 6px;
+                              width: 10px; height: 10px; background: #f0c674; border-radius: 50%; }
+    .decision { background: #1a2332; padding: 16px; border-radius: 8px; margin: 12px 0; }
+    .decision-title { font-weight: bold; color: #f0c674; font-size: 15px; }
+    .decision-meta { color: #8a9bae; font-size: 12px; margin-top: 4px; }
+    .vote-bar { display: flex; flex-wrap: wrap; gap: 4px; margin: 8px 0; align-items: center; }
+    .vote-bar .agent { padding: 4px 10px; background: #2d3e50; border-radius: 4px; font-size: 12px; color: #e6e6e6; }
+    .vote-bar .agent.support { background: #2d6a4f; }
+    .vote-bar .agent.oppose { background: #6a2d2d; }
+    .vote-bar .agent.neutral { background: #2d3e50; }
+    .debate { background: #15202b; padding: 12px; border-radius: 6px; margin: 8px 0;
+              border-left: 3px solid #f0c674; }
+    .debate .author { color: #f0c674; font-weight: bold; margin-bottom: 4px; }
+    .debate .content { white-space: pre-wrap; }
+    .letter { background: linear-gradient(135deg, #1a2332, #15202b); padding: 32px;
+              border-radius: 12px; font-style: italic; line-height: 1.8; white-space: pre-wrap; }
+    .collapsible { cursor: pointer; user-select: none; color: #b8c4d1; margin-top: 8px; display: inline-block; }
+    .collapsible:hover { color: #f0c674; }
+    .collapsible-content { display: none; margin-top: 12px; }
+    .collapsible.expanded + .collapsible-content { display: block; }
+    .options-list { list-style: none; padding-left: 0; margin: 8px 0; }
+    .options-list li { padding: 6px 10px; background: #15202b; border-radius: 4px; margin: 4px 0; font-size: 14px; }
+    .options-list li.chosen { background: #3a3520; color: #f0c674; font-weight: bold; }
+    .reasoning { background: #15202b; padding: 10px 12px; border-radius: 6px; margin: 8px 0;
+                 color: #b8c4d1; font-size: 13px; white-space: pre-wrap; }
+    .outcome { color: #82c4c3; font-size: 13px; margin-top: 6px; }
+    .empty { color: #8a9bae; font-style: italic; }
+    ul.bare { list-style: none; padding-left: 0; }
+  </style>
+</head>
+<body>
+  <div class="hero">
+    <h1>{{ person.name }} · 18 → 30岁</h1>
+    <p class="sub">{{ person.university }} · {{ person.family_background }}家庭 · 起点高考 {{ person.gaokao_score }}</p>
+    <p>共经历 {{ decisions|length }} 次关键决策 · 调用 LLM {{ llm_calls }} 次</p>
+  </div>
+
+  <h2>📊 人生曲线</h2>
+  {% if chart_b64 %}
+  <img src="data:image/png;base64,{{ chart_b64 }}" alt="人生曲线" style="width:100%; border-radius: 8px;">
+  {% else %}
+  <p class="empty">（无可用的指标历史）</p>
+  {% endif %}
+
+  <h2>🎯 终点指标 (30岁)</h2>
+  {% if final_metrics %}
+  <div class="metrics-grid">
+    {% for k, v in final_metrics.items() %}
+    <div class="metric">
+      <div class="metric-value">{{ v }}</div>
+      <div class="metric-label">{{ k }}</div>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <p class="empty">（尚未生成指标）</p>
+  {% endif %}
+
+  <h2>📜 关键决策时间线</h2>
+  {% if decisions %}
+  <div class="timeline">
+    {% for d in decisions %}
+    <div class="timeline-item">
+      <div class="decision">
+        <div class="decision-title">Q{{ d.quarter }} · {{ d.age }}岁 · {{ d.event_title }}</div>
+        <div class="decision-meta">类型：{{ d.event_type }}</div>
+        {% if d.event_description %}
+        <div style="color:#b8c4d1; font-size:13px; margin:4px 0;">{{ d.event_description }}</div>
+        {% endif %}
+        <div style="margin:8px 0;"><strong>选项：</strong></div>
+        <ul class="options-list">
+          {% for opt in d.options %}
+          <li {% if opt == d.chosen %}class="chosen"{% endif %}>
+            {{ opt }}{% if opt == d.chosen %} ✓ 选了{% endif %}
+          </li>
+          {% endfor %}
+        </ul>
+
+        {% if d.votes %}
+        <div class="vote-bar">
+          {% for agent, weight in d.votes.items() %}
+          <div class="agent {{ 'support' if weight > 0 else ('oppose' if weight < 0 else 'neutral') }}">
+            {{ agent }} {{ ['--','-','0','+','++'][weight + 2] if weight in [-2,-1,0,1,2] else '?' }}
+          </div>
+          {% endfor %}
+        </div>
+        {% endif %}
+
+        {% if d.reasoning %}
+        <div class="reasoning">{{ d.reasoning }}</div>
+        {% endif %}
+
+        {% if d.outcome %}
+        <div class="outcome">结果：{{ d.outcome }}</div>
+        {% endif %}
+
+        {% if d.debates %}
+        <div class="collapsible" onclick="this.classList.toggle('expanded')">▸ 查看董事会记录</div>
+        <div class="collapsible-content">
+          {% for db in d.debates %}
+          <div class="debate">
+            <div class="author">{{ db.emoji }} {{ db.role }} (第{{ db.round }}轮)</div>
+            <div class="content">{{ db.content }}</div>
+          </div>
+          {% endfor %}
+        </div>
+        {% endif %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <p class="empty">（没有关键决策）</p>
+  {% endif %}
+
+  <h2>💌 30岁的我给18岁的我</h2>
+  <div class="letter">
+    {{ letter | safe }}
+  </div>
+
+</body>
+</html>
