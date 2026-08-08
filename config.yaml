@@ -20,6 +20,7 @@ simulation:
       neuroticism: 0.5
 
 # Agent 角色配置
+# 7+1 完整配置
 agents:
   rational:
     enabled: true
