@@ -13,7 +13,7 @@ if echo "$commit_msg" | grep -qE '^(Merge|Revert|fixup!|squash!|amend!)'; then
 fi
 
 # Conventional Commits regex (simplified, single-line subject)
-pattern='^(feat|fix|docs|style|refactor|perf|test|chore|build|ci)(\([a-z0-9_-]+\))?!?: .{1,72}$'
+pattern='^(feat|fix|docs|style|refactor|perf|test|chore|build|ci)(\(([a-z0-9_-]+)(,[a-z0-9_-]+)*\))?!?: .{1,72}$'
 
 if ! echo "$commit_msg" | grep -qE "$pattern"; then
   echo ""
