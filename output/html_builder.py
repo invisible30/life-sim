@@ -321,6 +321,10 @@ def _normalize_decision(d: Any) -> dict[str, Any]:
         "vote_chips": vote_chips,
         "vote_bars": vote_bars,
         "luck_note": luck_note,
+        # True if the council ran out of LLM budget (all weights 0).
+        "llm_budget_exhausted": all(
+            (votes.get(k) or 0) == 0 for k in votes
+        ) if votes else False,
     }
 
 

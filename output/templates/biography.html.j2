@@ -320,6 +320,14 @@
       border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
     }
     .event-type-badge[style*="--accent: #ef4444"] { color: #f87171; }
+    .llm-budget-badge {
+      padding: 3px 10px;
+      border-radius: 999px;
+      font-size: 12px; font-weight: 500;
+      background: rgba(245, 158, 11, 0.12);
+      color: #fbbf24;
+      border: 1px solid rgba(245, 158, 11, 0.4);
+    }
     .event-title {
       font-size: 17px; font-weight: 600;
       color: var(--text);
@@ -643,7 +651,7 @@
       }
       details.collapsible > summary { display: none; }
       details.collapsible .debate-list { display: block !important; }
-      .pill, .vote-chip, .event-type-badge, .outcome-pill, .score-chip, .luck-note {
+      .pill, .vote-chip, .event-type-badge, .outcome-pill, .score-chip, .luck-note, .llm-budget-badge {
         border: 1px solid #999 !important; color: #1a1a1a !important; background: white !important;
       }
     }
@@ -739,6 +747,9 @@
             <span class="event-type-badge" style="--accent: {{ d.event_type_color }};">
               {{ d.event_icon }} {{ d.event_type_label }}
             </span>
+            {% if d.llm_budget_exhausted %}
+            <span class="llm-budget-badge" title="LLM 配额耗尽，agent votes 全部为 0">⚠️ LLM 限额</span>
+            {% endif %}
           </div>
           <h3 class="event-title">{{ d.event_title }}</h3>
           {% if d.event_description %}
