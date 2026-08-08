@@ -93,14 +93,17 @@ _VOTE_CHIP_LABEL = {
 # ---------------------------------------------------------------------------
 
 def _as_dict(obj: Any) -> dict[str, Any]:
-    """Normalize a dataclass-or-plain-object into a dict for downstream code.
+    """Normalize a dataclass / plain object / dict into a dict for downstream code.
 
     DecisionRecord is a dataclass; the test fake (``D`` in the verification
-    snippet) is a plain object with attributes set directly. Both paths are
-    supported so the renderer stays tolerant.
+    snippet) is a plain object with attributes set directly; log.json entries
+    are already plain dicts. All three paths are supported so the renderer
+    stays tolerant.
     """
     if obj is None:
         return {}
+    if isinstance(obj, dict):
+        return dict(obj)
     if hasattr(obj, "__dataclass_fields__"):
         from dataclasses import asdict
         return asdict(obj)
