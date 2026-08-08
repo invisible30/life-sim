@@ -1,0 +1,70 @@
+# Life Simulation Config
+# 人生沙盘配置
+
+simulation:
+  # 起点年龄 / 终点年龄
+  start_age: 18
+  end_age: 30
+  
+  # 18 岁的初始人设（可被 driver 随机化覆盖）
+  initial_person:
+    gaokao_score: 620          # 高考分数（0-750），决定初始学校
+    family_background: middle  # upper / middle / working / rural
+    gender: male
+    city_tier: tier2           # tier1 / new_tier1 / tier2 / small
+    personality_seed:          # 影响 agent 初始权重
+      openness: 0.5
+      conscientiousness: 0.5
+      extraversion: 0.4
+      agreeableness: 0.5
+      neuroticism: 0.5
+
+# Agent 角色配置
+agents:
+  rational:
+    enabled: true
+    voice: 理性我
+    emoji: "🧠"
+  emotional:
+    enabled: true
+    voice: 感性我
+    emoji: "💔"
+  ambitious:
+    enabled: true
+    voice: 野心版的我
+    emoji: "🔥"
+  realistic:
+    enabled: true
+    voice: 现实版的我
+    emoji: "🪨"
+  family:
+    enabled: true
+    voice: 家人期待
+    emoji: "👨‍👩‍👧"
+  future_me:
+    enabled: true
+    voice: 未来的我
+    emoji: "🕰️"
+  body:
+    enabled: true
+    voice: 身体
+    emoji: "🏃"
+  luck:
+    enabled: true
+    voice: 运气
+    emoji: "🎲"
+    is_random: true   # 不参与 LLM 调用，纯随机数
+
+# 决策会议触发条件（满足任一即开会）
+meeting_triggers:
+  - "milestone"          # 预设关键节点
+  - "opportunity"        # 世界引擎抛出的机会
+  - "crisis"             # 危机
+  - "crossroads"         # 用户的"岔路口"事件
+
+# 输出
+output:
+  html_report: true
+  json_log: true
+  include_agent_debates: true
+  max_debate_rounds: 2   # 立场表达后最多互相回应几轮
