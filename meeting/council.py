@@ -69,11 +69,7 @@ class Council:
         
         # 3. 投票（所有 agent 并发）
         votes = await self._vote_parallel(agenda)
-        # DEBUG: inspect votes
-        for v in votes:
-            if not hasattr(v, "emoji"):
-                raise RuntimeError(f"vote from {getattr(v, 'agent', '?')} has no emoji: {v!r}")
-        
+
         # 4. 决策融合
         chosen, scores, abstained = self._fuse(agenda["options"], votes)
         reasoning = self._build_reasoning(votes, scores, chosen)
@@ -158,11 +154,6 @@ class Council:
                             f"vote class: {type(r).__name__}, "
                             f"attrs: {sorted(vars(r).keys()) if hasattr(r, '__dict__') else 'no __dict__'}"
                         )
-                # DEBUG
-                if not hasattr(r, "emoji"):
-                    import sys
-                    sys.stdout.write(f"  [debug] vote: agent={a.name}, type={type(r).__name__}, has_emoji=False, dict={vars(r) if hasattr(r,'__dict__') else 'no_dict'}\n")
-                    sys.stdout.flush()
                 votes.append(r)
         return votes
     
