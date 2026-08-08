@@ -171,22 +171,54 @@ class LifeState:
             return "career_settling"
 
 
-def init_state_from_config(cfg: dict[str, Any], seed: int) -> LifeState:
-    """从配置初始化 LifeState"""
+def init_state_from_config(
+    cfg: dict[str, Any],
+    seed: int,
+    randomize_person: bool = False,
+) -> LifeState:
+    """从配置初始化 LifeState
+
+    randomize_person: 用 seed 派生 person 的人设（gaokao/family/city/personality），
+                      让不同 seed 跑出不同的人生。
+    """
+    import random
+    rng = random.Random(seed)
+
     pcfg = cfg["simulation"]["initial_person"]
+
+    if randomize_person:
+        # 用 seed 派生人设
+        gaokao_score = rng.randint(480, 695)
+        family = rng.choice(["upper", "middle", "working", "rural"])
+        gender = pcfg.get("gender", rng.choice(["male", "female"]))
+        city = rng.choice(["tier1", "new_tier1", "tier2", "small"])
+        personality = Personality(
+            openness=rng.uniform(0.2, 0.9),
+            conscientiousness=rng.uniform(0.2, 0.9),
+            extraversion=rng.uniform(0.2, 0.9),
+            agreeableness=rng.uniform(0.2, 0.9),
+            neuroticism=rng.uniform(0.2, 0.9),
+        )
+    else:
+        gaokao_score = pcfg.get("gaokao_score", 600)
+        family = pcfg.get("family_background", "middle")
+        gender = pcfg.get("gender", "male")
+        city = pcfg.get("city_tier", "tier2")
+        pcfg_p = pcfg.get("personality_seed", {})
+        personality = Personality(
+            openness=pcfg_p.get("openness", 0.5),
+            conscientiousness=pcfg_p.get("conscientiousness", 0.5),
+            extraversion=pcfg_p.get("extraversion", 0.5),
+            agreeableness=pcfg_p.get("agreeableness", 0.5),
+            neuroticism=pcfg_p.get("neuroticism", 0.5),
+        )
+
     person = Person(
-        gaokao_score=pcfg.get("gaokao_score", 600),
-        family_background=pcfg.get("family_background", "middle"),
-        gender=pcfg.get("gender", "male"),
-        city_tier=pcfg.get("city_tier", "tier2"),
-    )
-    pcfg_p = pcfg.get("personality_seed", {})
-    person.personality = Personality(
-        openness=pcfg_p.get("openness", 0.5),
-        conscientiousness=pcfg_p.get("conscientiousness", 0.5),
-        extraversion=pcfg_p.get("extraversion", 0.5),
-        agreeableness=pcfg_p.get("agreeableness", 0.5),
-        neuroticism=pcfg_p.get("neuroticism", 0.5),
+        gaokao_score=gaokao_score,
+        family_background=family,
+        gender=gender,
+        city_tier=city,
+        personality=personality,
     )
     person.university = person.derive_school()
     person.initial_cash = person.derive_initial_cash()
