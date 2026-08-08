@@ -23,15 +23,18 @@ from meeting.council import Council
 # 决策选项 → 连锁 flag 映射（影响后续事件）
 OPTION_FLAG_MAP: list[dict[str, Any]] = [
     {"match": ["保研", "考研", "读研", "出国", "留学", "MBA"], "flags": ["in_grad_school", "grad_recently"]},
-    {"match": ["结婚", "领证", "裸婚"], "flags": ["married_recently"]},
-    {"match": ["要孩子", "生孩子", "趁年轻", "要，趁年轻"], "flags": ["has_child"]},
+    {"match": ["结婚", "领证", "裸婚", "订婚"], "flags": ["married_recently", "has_partner"]},
+    {"match": ["要孩子", "生孩子", "趁年轻", "要，趁年轻", "留下"], "flags": ["has_child"]},
     {"match": ["创业", "all in", "全职", "加入创业"], "flags": ["in_startup"]},
-    {"match": ["工作", "入行", "入职", "接工作", "接 offer"], "flags": ["in_job", "grad_recently"]},
+    {"match": ["工作", "入行", "入职", "接工作", "接 offer", "跳槽", "升职"], "flags": ["in_job", "grad_recently"]},
     {"match": ["考公", "考编", "公务员", "体制"], "flags": ["in_civil_service"]},
-    {"match": ["gap", "休学", "GAP"], "flags": ["in_gap_year"]},
-    {"match": ["换城市", "去杭州", "去深圳", "去成都"], "flags": ["relocated"]},
-    {"match": ["买房", "上车"], "flags": ["home_owner"]},
-    {"match": ["养猫", "养狗"], "flags": ["has_pet"]},
+    {"match": ["gap", "休学", "GAP", "休息", "请假", "调养", "停下来"], "flags": ["in_gap_year"]},
+    {"match": ["换城市", "去杭州", "去深圳", "去成都", "去新加坡", "去欧洲", "去硅谷"], "flags": ["relocated"]},
+    {"match": ["买房", "上车", "付首付", "老破小", "新房"], "flags": ["home_owner"]},
+    {"match": ["养猫", "养狗", "养宠物"], "flags": ["has_pet"]},
+    {"match": ["在一起", "认真投入", "试试看", "跟 TA", "表白", "约下一次", "制造再次偶遇"], "flags": ["has_partner"]},
+    {"match": ["分手", "断交", "裸辞", "辞职", "走人"], "flags": ["burned_out"]},
+    {"match": ["海外", "新加坡", "欧洲", "硅谷", "出国读", "出国读博", "出国读研"], "flags": ["abroad"]},
 ]
 
 

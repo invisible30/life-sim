@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import os
 import time
 from dataclasses import asdict
 from typing import Any
@@ -25,7 +26,7 @@ from llm.client import LLMClient
 
 class Council:
     """人生董事会主持人"""
-    
+
     def __init__(
         self,
         llm: LLMClient,
@@ -40,6 +41,9 @@ class Council:
         self.max_debate_rounds = max_debate_rounds
         self.parallel = parallel
         self.agents: list[Agent] = make_all_agents(llm, state, enabled_agents)
+        # 限流 semaphore：避免 7 个并发触发 minimax 限速
+        max_conc = int(os.getenv("LIFE_MAX_CONCURRENT_LLM", "5"))
+        self._llm_sem = asyncio.Semaphore(max_conc)
     
     def refresh_agents(self) -> None:
         """重建 agent（状态变化时调用）"""
@@ -94,7 +98,7 @@ class Council:
         # luck 不调 LLM
         llm_agents = [a for a in self.agents if a.name != "luck"]
         results = await asyncio.gather(
-            *[a.express(agenda) for a in llm_agents],
+            *[self._express_with_sem(a, agenda) for a in llm_agents],
             return_exceptions=True,
         )
         views = []
@@ -108,17 +112,22 @@ class Council:
         if luck:
             views.append(await luck.express(agenda))
         return views
-    
+
+    async def _express_with_sem(self, agent, agenda):
+        async with self._llm_sem:
+            return await agent.express(agenda)
+
     async def _express_serial(self, agenda) -> list[AgentView]:
         views = []
         for a in self.agents:
             try:
-                v = await a.express(agenda)
+                async with self._llm_sem:
+                    v = await a.express(agenda)
                 views.append(v)
             except Exception as e:
                 views.append(AgentView(agent=a.name, role=a.voice, emoji=a.emoji, content=f"[ERROR: {e}]"))
         return views
-    
+
     async def _respond_round(
         self,
         agenda,
@@ -126,7 +135,7 @@ class Council:
         round_num: int,
     ) -> list[AgentView]:
         llm_agents = [a for a in self.agents if a.name != "luck"]
-        tasks = [a.respond(agenda, prev_views, round_num) for a in llm_agents]
+        tasks = [self._respond_with_sem(a, agenda, prev_views, round_num) for a in llm_agents]
         results = await asyncio.gather(*tasks, return_exceptions=True)
         new_views = []
         for a, r in zip(llm_agents, results):
@@ -134,9 +143,13 @@ class Council:
                 continue
             new_views.append(r)
         return new_views
-    
+
+    async def _respond_with_sem(self, agent, agenda, prev_views, round_num):
+        async with self._llm_sem:
+            return await agent.respond(agenda, prev_views, round_num)
+
     async def _vote_parallel(self, agenda) -> list[AgentVote]:
-        tasks = [a.vote(agenda) for a in self.agents]
+        tasks = [self._vote_with_sem(a, agenda) for a in self.agents]
         results = await asyncio.gather(*tasks, return_exceptions=True)
         votes = []
         for a, r in zip(self.agents, results):
@@ -156,6 +169,10 @@ class Council:
                         )
                 votes.append(r)
         return votes
+
+    async def _vote_with_sem(self, agent, agenda):
+        async with self._llm_sem:
+            return await agent.vote(agenda)
     
     def _fuse(
         self,
