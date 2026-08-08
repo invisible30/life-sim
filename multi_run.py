@@ -54,11 +54,33 @@ async def run_one_seed(seed: int, cfg: dict, llm: LLMClient, randomize: bool = T
     
     t0 = time.time()
     
-    # 用 watchdog 协程定时打印进度
+    # 实时进度 watchdog：每 10 秒打印一次，包含阶段、最近决策、LLM 进度
+    last_decision_count = 0
+    last_decision_title = ""
+    
     async def watchdog():
+        nonlocal last_decision_count, last_decision_title
         while True:
-            await asyncio.sleep(60)
-            print(f"   ⏳ {int(time.time()-t0)}s elapsed | Q{state.current_quarter}/48 | LLM累计 {llm.call_count}", flush=True)
+            await asyncio.sleep(10)
+            n_dec = len(state.decisions)
+            if n_dec > last_decision_count:
+                last_decision_count = n_dec
+                last_decision_title = state.decisions[-1].event_title[:25]
+            remaining_calls = llm.remaining_calls
+            pct = (llm.call_count / llm.cfg.max_total_calls) * 100
+            bar_len = 20
+            filled = int(bar_len * llm.call_count / llm.cfg.max_total_calls)
+            bar = "█" * filled + "░" * (bar_len - filled)
+            
+            print(
+                f"\r  ⏱ {int(time.time()-t0):3d}s | "
+                f"Q{state.current_quarter:2d}/48 | "
+                f"{state.life_stage:22s} | "
+                f"决策 {n_dec:2d} | "
+                f"LLM [{bar}] {llm.call_count:3d}/{llm.cfg.max_total_calls} ({pct:.0f}%) | "
+                f"📌 {last_decision_title:<25s}",
+                end="", flush=True,
+            )
     
     wd = asyncio.create_task(watchdog())
     try:
@@ -69,6 +91,7 @@ async def run_one_seed(seed: int, cfg: dict, llm: LLMClient, randomize: bool = T
             await wd
         except asyncio.CancelledError:
             pass
+        print(flush=True)  # newline after progress line
     
     elapsed = time.time() - t0
     

@@ -25,6 +25,7 @@ htmlcov/
 .env
 output/*.html
 output/*.json
+output/seed*/
 !output/.gitkeep
 !output/templates/
 !output/static/
