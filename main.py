@@ -180,7 +180,10 @@ async def _generate_letter(state: LifeState, llm: LLMClient) -> str:
 - 中文，写得自然一点，不要"亲爱的自己"这种开头"""
 
     user = f"30 岁的你，现在的状态：\n{summary}\n\n请写一封信给 18 岁的自己。"
-    return await llm.chat(system, user, temperature=0.9, max_tokens=1500)
+    raw = await llm.chat(system, user, temperature=0.9, max_tokens=1500)
+    # 剥掉模型泄露的 <think>...</think> 推理段
+    import re as _re
+    return _re.sub(r"<think>.*?</think>\s*", "", raw, flags=_re.DOTALL).strip()
 
 
 if __name__ == "__main__":
