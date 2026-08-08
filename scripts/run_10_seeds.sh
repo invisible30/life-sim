@@ -25,6 +25,9 @@ mkdir -p output/logs
 MASTER_LOG=output/logs/master_$(date +%Y%m%d_%H%M%S).log
 SYMLINK=output/logs/master_latest.log
 
+# 立刻更新 symlink 到本次 log（便于 watchdog 跟 tail -f 实时跟随）
+ln -sf "$(basename $MASTER_LOG)" "$SYMLINK"
+
 echo "🧬 Life Sim 10-Seed Runner" | tee -a "$MASTER_LOG"
 echo "  Start: $(date)" | tee -a "$MASTER_LOG"
 echo "  LIFE_MAX_LLM_CALLS=$LIFE_MAX_LLM_CALLS" | tee -a "$MASTER_LOG"
