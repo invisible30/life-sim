@@ -284,12 +284,13 @@ def compute_decision_effects(decision: DecisionRecord) -> dict[str, float]:
 class Driver:
     """季度驱动器"""
     
-    def __init__(self, state: LifeState, world: World, council: Council):
+    def __init__(self, state: LifeState, world: World, council: Council, end_quarter: int | None = None):
         self.state = state
         self.world = world
         self.council = council
         self.start_quarter = 0
-        self.end_quarter = 48
+        # 允许覆盖 end_quarter（默认 48 季度 = 12 年）
+        self.end_quarter = end_quarter if end_quarter is not None else 48
     
     async def run(self, quiet: bool = False) -> list[DecisionRecord]:
         """跑完所有季度"""

@@ -66,18 +66,24 @@ async def main():
     
     # 3. 世界 + 董事会
     world = World(state)
+    debate_rounds = int(os.getenv("LIFE_MAX_DEBATE_ROUNDS", "0")) or \
+                    cfg.get("output", {}).get("max_debate_rounds", 2)
     council = Council(
         llm=llm,
         state=state,
         enabled_agents=cfg.get("agents", {}),
-        max_debate_rounds=cfg.get("output", {}).get("max_debate_rounds", 2),
+        max_debate_rounds=debate_rounds,
         parallel=os.getenv("LIFE_PARALLEL_AGENTS", "true").lower() == "true",
     )
+    print(f"   辩论轮数: {debate_rounds}")
     print(f"👥 Agent: {[a.name for a in council.agents]}")
     
     # 4. 跑
-    driver = Driver(state, world, council)
-    print(f"\n⏱️  开始跑 18→30 (48 季度)...")
+    end_quarter = int(os.getenv("LIFE_END_QUARTER", "0")) or None
+    if end_quarter is None:
+        end_quarter = (int(cfg["simulation"]["end_age"]) - int(cfg["simulation"]["start_age"])) * 4
+    driver = Driver(state, world, council, end_quarter=end_quarter)
+    print(f"\n⏱️  开始跑 18→{cfg['simulation']['end_age']} ({end_quarter} 季度)...")
     t0 = time.time()
     
     try:

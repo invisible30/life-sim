@@ -2,9 +2,9 @@
 # 人生沙盘配置
 
 simulation:
-  # 起点年龄 / 终点年龄
+  # 起点年龄 / 终点年龄（试水版：跑 5 年看效果）
   start_age: 18
-  end_age: 30
+  end_age: 23
   
   # 18 岁的初始人设（可被 driver 随机化覆盖）
   initial_person:
