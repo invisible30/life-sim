@@ -165,10 +165,25 @@ class Agent(ABC):
         )
     
     async def vote(self, agenda: dict[str, Any]) -> AgentVote:
-        """投票"""
+        """投票
+
+        当 LLM 调用失败（[LLM_ERROR] / [LLM_CALL_LIMIT_REACHED]）时，
+        fallback 到基于选项关键词 + agent persona 的简单启发式：
+        - 理性 / 现实 / 未来：偏好实际/经济类选项
+        - 感性 / 家人：偏好关系/情感类选项
+        - 野心：偏好"突破"类选项
+        - 身体：偏好"健康/休息"类选项
+        - 退而求其次：选第一个选项 + 中立权重
+        """
         user_prompt = self._build_user_prompt(agenda, mode="vote")
         content = await self.llm.chat(self.system_prompt(), user_prompt, temperature=0.5)
-        option, weight, reasoning = self._parse_vote(content, agenda.get("options", []))
+        options = agenda.get("options", [])
+
+        # Fallback 检测：LLM 失败时 content 是 [LLM_ERROR...] 或 [LLM_CALL_LIMIT_REACHED]
+        if content.startswith("[LLM_ERROR") or content.startswith("[LLM_CALL_LIMIT_REACHED"):
+            return self._fallback_vote(agenda, content)
+
+        option, weight, reasoning = self._parse_vote(content, options)
         return AgentVote(
             agent=self.name,
             role=self.voice,
@@ -176,6 +191,47 @@ class Agent(ABC):
             option=option,
             weight=weight,
             reasoning=reasoning,
+        )
+
+    def _fallback_vote(self, agenda: dict[str, Any], err_content: str) -> AgentVote:
+        """LLM 不可用时的启发式投票"""
+        options = agenda.get("options", [])
+
+        # 按 agent persona 找匹配选项
+        persona_keywords = {
+            "rational": ["实际", "稳", "数据", "数据", "成本", "收益", "效率", "系统", "理性", "算", "长期", "ROI", "钱", "薪资", "技术", "工作", "找", "学"],
+            "emotional": ["关系", "感", "朋友", "TA", "陪伴", "一起", "感受", "爱", "生活", "玩", "享受", "当下", "跟着", "想要", "快乐"],
+            "ambitious": ["大", "突破", "all in", "跳槽", "转", "新", "升", "创业", "高薪", "更好", "行业", "天花板", "看齐", "敢"],
+            "realistic": ["稳", "现实", "先", "保留", "安全", "风险", "成本", "负债", "存款", "副业", "过渡", "观察"],
+            "family": ["爸妈", "父母", "回家", "对象", "结婚", "相亲", "稳定", "传统", "陪伴", "家庭", "家人", "未来"],
+            "future_me": ["5年", "10年", "20年", "临终", "长期", "未来", "天花板", "老了", "人生", "选择"],
+            "body": ["休息", "运动", "健康", "调养", "跑步", "睡眠", "看医生", "养", "GAP", "停下来"],
+        }
+        # luck 走随机
+        if self.name == "luck":
+            import random
+            rng = random.Random(hash((self.state.seed, self.state.current_quarter, self.name)))
+            choice = options[rng.randint(0, len(options) - 1)] if options else ""
+            return AgentVote(agent=self.name, role=self.voice, emoji=self.emoji,
+                             option=choice, weight=rng.choice([-1, 0, 1]),
+                             reasoning=f"[fallback random: {err_content[:30]}]")
+
+        kws = persona_keywords.get(self.name, [])
+        best_option = ""
+        best_score = -1
+        for opt in options:
+            score = sum(1 for kw in kws if kw in opt)
+            if score > best_score:
+                best_score = score
+                best_option = opt
+
+        if not best_option:
+            best_option = options[0] if options else ""
+
+        return AgentVote(
+            agent=self.name, role=self.voice, emoji=self.emoji,
+            option=best_option, weight=1 if best_score > 0 else 0,
+            reasoning=f"[fallback heuristic match score={best_score}: {err_content[:40]}]",
         )
     
     def _build_user_prompt(
