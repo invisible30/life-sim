@@ -53,7 +53,23 @@ async def run_one_seed(seed: int, cfg: dict, llm: LLMClient, randomize: bool = T
     driver = Driver(state, world, council)
     
     t0 = time.time()
-    await driver.run(quiet=True)
+    
+    # 用 watchdog 协程定时打印进度
+    async def watchdog():
+        while True:
+            await asyncio.sleep(60)
+            print(f"   ⏳ {int(time.time()-t0)}s elapsed | Q{state.current_quarter}/48 | LLM累计 {llm.call_count}", flush=True)
+    
+    wd = asyncio.create_task(watchdog())
+    try:
+        await driver.run(quiet=True)
+    finally:
+        wd.cancel()
+        try:
+            await wd
+        except asyncio.CancelledError:
+            pass
+    
     elapsed = time.time() - t0
     
     final = state.metrics.as_dict()
