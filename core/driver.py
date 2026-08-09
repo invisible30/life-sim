@@ -390,13 +390,21 @@ class Driver:
             try:
                 decision = await self.council.hold(event)
                 self.state.decisions.append(decision)
-                # 各 agent 记住这次决策
+                # 各 agent 记住这次决策 (issue #16: 带更丰富 context)
+                # 收集每个 agent 自己的立场 (从 debates 里)
+                my_stances: dict[str, str] = {}
+                for view in decision.debates:
+                    if view.get("round") == 1 and view.get("agent"):
+                        my_stances[view["agent"]] = view.get("content", "")
                 for a in self.council.agents:
                     a.remember_decision({
                         "quarter": decision.quarter,
+                        "agent": a.name,
                         "title": decision.event_title,
                         "chosen": decision.chosen,
                         "outcome": decision.outcome,
+                        "my_stance": my_stances.get(a.name, ""),
+                        "council_votes": dict(decision.votes or {}),
                     })
             except Exception as e:
                 if not quiet:
