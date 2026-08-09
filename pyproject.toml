@@ -1,0 +1,51 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "life-sim"
+version = "0.1.0"
+description = "Multi-agent life-simulation sandbox — 7 LLM personas + 1 dice argue and vote at every life crossroads."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "steph" }]
+keywords = ["llm", "agent", "simulation", "multi-agent", "openai", "anthropic", "minimax"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Games/Entertainment :: Simulation",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+dependencies = [
+    "openai>=1.30.0",
+    "anthropic>=0.30.0",
+    "python-dotenv>=1.0.0",
+    "jinja2>=3.1.0",
+    "pydantic>=2.0.0",
+    "pyyaml>=6.0",
+    "rich>=13.0.0",
+    "matplotlib>=3.7.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/invisible30/life-sim"
+Issues = "https://github.com/invisible30/life-sim/issues"
+
+[project.scripts]
+life-sim = "main:main"
+life-sim-multi = "multi_run:main"
+
+[tool.setuptools]
+py-modules = ["main", "multi_run"]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["core*", "agents*", "meeting*", "llm*", "reporting*", "data*"]

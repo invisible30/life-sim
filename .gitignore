@@ -13,6 +13,9 @@ ENV/
 htmlcov/
 .mypy_cache/
 .ruff_cache/
+*.egg-info/
+dist/
+build/
 
 # IDE
 .idea/
@@ -21,16 +24,21 @@ htmlcov/
 *.swo
 .DS_Store
 
-# Project
+# Project secrets
 .env
-output/*.html
+.env.local
+.env.*.local
+
+# Runtime output (auto-generated, mostly not committed)
+output/*.log
 output/*.json
 output/seed*/
+output/seed42/**         # negate later: keep showcase
+!output/seed42/
+!output/seed42/biography.html
+!output/seed42/log.json
+!output/compare.html
 !output/.gitkeep
-!output/templates/
-!output/static/
-*.log
-logs/
 
 # OS
 Thumbs.db

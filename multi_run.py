@@ -24,7 +24,7 @@ from core.world import World
 from core.driver import Driver
 from meeting.council import Council
 from llm.client import LLMClient
-from output.html_builder import build_html
+from reporting.html_builder import build_html
 
 
 ROOT = Path(__file__).parent
