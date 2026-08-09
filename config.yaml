@@ -69,3 +69,18 @@ output:
   json_log: true
   include_agent_debates: true
   max_debate_rounds: 2   # 立场表达后最多互相回应几轮
+
+# 资产负债表（issue #31）— 净资产用代码确定性算
+housing:
+  base_price_per_tier:    # 单位：万元 (按 city_tier 决定基线房价)
+    tier1: 600            # 北京/上海/广州/深圳
+    new_tier1: 400        # 成都/杭州/南京
+    tier2: 200            # 省会/强二线
+    small: 80             # 小城市
+  price_jitter: 0.20      # ±20% 随机扰动 (per seed) — 让不同 seed 房价有差异
+  down_payment_ratio: 0.30  # 首付 30%
+  mortgage_years: 30
+  mortgage_rate: 0.0375    # 当前 LPR
+  house_appreciation: 0.02 # 房子年化增值 2%
+  savings_rate: 0.40       # 工资 40% 存下来（储蓄率）
+  cash_flow_window_months: 3  # 月现金流 = 季储蓄 - 季月供 ÷ 3

@@ -3,14 +3,17 @@
 每个季度：
 1. world.tick() 生成事件
 2. 决定是否召开董事会
-3. 执行决策 → 更新指标 + 写连锁 flag
-4. 记录历史 + 写 progress.log
+3. 执行决策 → 更新指标 + 写连锁 flag + 触发买房等结构性事件
+4. balance_sheet.tick_quarter → 工资入账、扣月供、房子增值
+5. 同步净资产 (issue #31: net_worth 派生自 balance_sheet)
+6. 记录历史 + 写 progress.log
 """
 from __future__ import annotations
 
 import json
 import logging
 import os
+import random
 import time
 from dataclasses import asdict
 from pathlib import Path
@@ -18,6 +21,7 @@ from typing import Any
 
 from core.state import LifeState, DecisionRecord
 from core.world import World, WorldEvent
+from core.balance_sheet import BalanceSheet
 from meeting.council import Council
 
 logger = logging.getLogger(__name__)
@@ -41,6 +45,10 @@ OPTION_FLAG_MAP: list[dict[str, Any]] = [
 ]
 
 
+# 买房事件关键词（issue #31）— 这些选项会触发 BalanceSheet.buy_house
+HOUSING_BUY_KEYWORDS = ["买房", "上车", "付首付", "老破小", "新房"]
+
+
 def update_flags(state: LifeState, chosen: str) -> None:
     """根据决策选项更新 state.flags"""
     state.flags.add("decision_made")  # 通用 flag
@@ -54,6 +62,7 @@ def update_flags(state: LifeState, chosen: str) -> None:
 
 # 决策选项 → 指标影响（粗略规则）
 # 关键词匹配：选了包含某关键词的选项，就触发对应 effect
+# 注意: net_worth 不在这里直接加减, 由 balance_sheet 派生 (issue #31)
 OPTION_EFFECTS: list[dict[str, Any]] = [
     {
         "match": ["保研", "考研", "读研", "出国", "留学", "MBA"],
@@ -84,7 +93,6 @@ OPTION_EFFECTS: list[dict[str, Any]] = [
         "effects": {
             "career_level": +2,
             "career_income_yearly": -3,
-            "net_worth": -5,
             "free_hours_weekly": -20,
             "physical_health": -5,
             "mental_health": -8,
@@ -99,16 +107,14 @@ OPTION_EFFECTS: list[dict[str, Any]] = [
         "effects": {
             "relationship_density": +20,
             "romantic_health": +30,
-            "net_worth": -10,
             "free_hours_weekly": -15,
             "meaning_score": +5,
         },
     },
     {
-        "match": ["买", "上车", "买房"],
+        # issue #31: 买房的 net_worth 走 balance_sheet.buy_house, 这里不再硬扣
+        "match": ["买房", "上车", "付首付", "老破小", "新房"],
         "effects": {
-            "net_worth": -30,
-            "cash_flow_monthly": -1.0,
             "meaning_score": +8,
             "regret_index": -3,
         },
@@ -128,14 +134,12 @@ OPTION_EFFECTS: list[dict[str, Any]] = [
             "mental_health": +8,
             "physical_energy": +15,
             "free_hours_weekly": +10,
-            "net_worth": -2,
         },
     },
     {
         "match": ["辞职", "裸辞", "走人"],
         "effects": {
             "cash_flow_monthly": -1.5,
-            "net_worth": -3,
             "mental_health": +5,
             "physical_energy": +10,
             "regret_index": +2,
@@ -227,7 +231,7 @@ TYPE_EFFECTS = {
 }
 
 
-# 经济周期对每个季度的基础影响
+# 经济周期对每个季度的基础影响 (issue #31: net_worth 走 balance_sheet.cash)
 ECONOMY_EFFECTS = {
     "boom": {"career_income_yearly": +1.5, "net_worth": +2},
     "normal": {"career_income_yearly": +0.5, "net_worth": +0.5},
@@ -236,11 +240,20 @@ ECONOMY_EFFECTS = {
 }
 
 
-def apply_effects(metrics_obj, effects: dict[str, float]) -> None:
-    """应用效果到 LifeMetrics（14 项）"""
+def apply_effects(metrics_obj, effects: dict[str, float], balance_sheet: BalanceSheet | None = None) -> None:
+    """应用效果到 LifeMetrics（14 项）
+
+    issue #31: net_worth 不再直接写 metrics, 而是作为 balance_sheet.cash 的增减。
+    真正的净资产在 tick_quarter 末尾统一从 balance_sheet.net_worth 派生。
+    """
     for k, v in effects.items():
         if k == "net_worth":
-            metrics_obj.net_worth += v
+            # 净资产效果 → 现金增减 (issue #31)
+            if balance_sheet is not None:
+                balance_sheet.cash += v
+            else:
+                # fallback: 旧行为, 写 metrics (向后兼容)
+                metrics_obj.net_worth += v
         elif k == "cash_flow_monthly":
             metrics_obj.cash_flow_monthly += v
         elif k == "physical_health":
@@ -332,22 +345,66 @@ def compute_decision_effects(decision: DecisionRecord) -> dict[str, float]:
 
 class Driver:
     """季度驱动器"""
-    
-    def __init__(self, state: LifeState, world: World, council: Council, end_quarter: int | None = None):
+
+    def __init__(
+        self,
+        state: LifeState,
+        world: World,
+        council: Council,
+        end_quarter: int | None = None,
+        housing_config: dict | None = None,
+    ):
         self.state = state
         self.world = world
         self.council = council
         self.start_quarter = 0
         # 允许覆盖 end_quarter（默认 48 季度 = 12 年）
         self.end_quarter = end_quarter if end_quarter is not None else 48
-    
+        # 资产负债表配置 (issue #31)
+        self.housing_config = housing_config or {}
+        # 买房的随机种子 — 同一 seed 跑出来房价一致
+        self._buy_rng = random.Random(state.seed)
+
+    def _house_price_for(self, city_tier: str) -> float:
+        """根据城市档次 + 随机扰动计算房价"""
+        base = self.housing_config.get("base_price_per_tier", {}).get(city_tier, 200)
+        jitter = self.housing_config.get("price_jitter", 0.20)
+        # ±jitter 随机
+        factor = self._buy_rng.uniform(1 - jitter, 1 + jitter)
+        return round(base * factor, 1)
+
+    def _try_buy_house(self, decision: DecisionRecord) -> dict | None:
+        """检测到买房决策就调 balance_sheet.buy_house
+        Returns: buy_house() 返回的 dict, 或者 None (失败/未触发)
+        """
+        chosen = decision.chosen
+        if not any(kw in chosen for kw in HOUSING_BUY_KEYWORDS):
+            return None
+        if self.state.balance_sheet.has_house:
+            return None  # 已经有房, 跳过
+
+        house_price = self._house_price_for(self.state.person.city_tier)
+        try:
+            info = self.state.balance_sheet.buy_house(
+                house_price=house_price,
+                down_payment_ratio=self.housing_config.get("down_payment_ratio", 0.30),
+                mortgage_rate_annual=self.housing_config.get("mortgage_rate", 0.0375),
+                mortgage_years=self.housing_config.get("mortgage_years", 30),
+            )
+            decision.outcome_extra = {"house_purchase": info}
+            return info
+        except ValueError as e:
+            # 现金不够首付 — 记日志, 不强行买
+            logger.warning("买房失败: %s", e)
+            return None
+
     async def run(self, quiet: bool = False) -> list[DecisionRecord]:
         """跑完所有季度"""
         for q in range(self.start_quarter, self.end_quarter):
             await self.tick_quarter(q, quiet=quiet)
             self._write_progress()
         return self.state.decisions
-    
+
     def _write_progress(self) -> None:
         """写 progress.log 行（tail -f 可看）"""
         path = os.environ.get("LIFE_PROGRESS_LOG", "")
@@ -375,16 +432,16 @@ class Driver:
                 f.write(line + "\n")
         except Exception:
             pass
-    
+
     async def tick_quarter(self, q: int, quiet: bool = False) -> None:
         """一个季度"""
         self.state.current_quarter = q
         self.state.current_age = 18 + q * 0.25
         self.state.life_stage = self.state.determine_stage()
-        
+
         # 1. 世界 tick
         events = self.world.tick()
-        
+
         # 2. 开会（如果有事）
         decision = None
         if events:
@@ -416,11 +473,16 @@ class Driver:
                     msg += "".join(traceback.format_exception(type(e), e, e.__traceback__))
                     sys.stdout.write(msg)
                     sys.stdout.flush()
-        
+
         # 3. 应用 effects + 写连锁 flag
         if decision:
             effects = compute_decision_effects(decision)
-            apply_effects(self.state.metrics, effects)
+            # 买房特殊处理: 一次性扣首付 + 记贷款 (issue #31)
+            house_info = self._try_buy_house(decision)
+            # 删掉 effects 里的 net_worth (因为买房走 balance_sheet), 防止双重扣
+            if house_info is not None:
+                effects.pop("net_worth", None)
+            apply_effects(self.state.metrics, effects, balance_sheet=self.state.balance_sheet)
             # 4. 决策后调 drift 机制 (issue #1: 之前是空 pass)
             try:
                 self.council.update_agent_weights(decision, effects)
@@ -428,19 +490,34 @@ class Driver:
                 if not quiet:
                     logger.warning("drift update failed: %s: %s", type(e).__name__, e)
             update_flags(self.state, decision.chosen)
-            decision.outcome = _summarize_outcome(self.state, effects)
-        
-        # 4. 经济周期基础影响
+            decision.outcome = _summarize_outcome(self.state, effects, house_info)
+
+        # 4. 经济周期基础影响 (net_worth 走 balance_sheet.cash)
         econ = ECONOMY_EFFECTS.get(self.world.economy_phase, ECONOMY_EFFECTS["normal"])
-        apply_effects(self.state.metrics, econ)
-        
-        # 5. 自然漂移
+        apply_effects(self.state.metrics, econ, balance_sheet=self.state.balance_sheet)
+
+        # 5. 资产负债表推进: 工资入账 + 扣月供 + 房子增值 (issue #31)
+        bs_info = self.state.balance_sheet.tick_quarter(
+            income_yearly=self.state.metrics.career_income_yearly,
+            savings_rate=self.housing_config.get("savings_rate", 0.40),
+            house_appreciation_annual=self.housing_config.get("house_appreciation", 0.02),
+        )
+        # 净资产从 balance_sheet 派生
+        self.state.metrics.net_worth = self.state.balance_sheet.net_worth
+        # 月现金流 = 月储蓄 - 月供
+        quarterly_save = bs_info["saved"]
+        quarterly_mortgage = bs_info["quarterly_mortgage"]
+        self.state.metrics.cash_flow_monthly = round(
+            (quarterly_save - quarterly_mortgage) / 3, 2
+        )
+
+        # 6. 自然漂移
         _natural_drift(self.state.metrics, self.state.life_stage)
-        
-        # 6. 记录
+
+        # 7. 记录
         self.state.record_metrics()
-        
-        # 7. 打印进度
+
+        # 8. 打印进度
         if not quiet:
             _print_quarter_log(self.state, decision, self.world.economy_phase)
 
@@ -457,8 +534,19 @@ def asyncio_run(coro):
     return asyncio.run(coro)
 
 
-def _summarize_outcome(state: LifeState, effects: dict[str, float]) -> str:
+def _summarize_outcome(
+    state: LifeState,
+    effects: dict[str, float],
+    house_info: dict | None = None,
+) -> str:
     parts = []
+    if house_info is not None:
+        # 买房: 显示房价/首付/月供
+        parts.append(
+            f"🏠 房价 {house_info['house_price']:.0f}w / "
+            f"首付 {house_info['down_payment']:.0f}w / "
+            f"月供 {house_info['monthly_payment']:.2f}w"
+        )
     if effects.get("net_worth", 0) > 0:
         parts.append(f"净资产+{effects['net_worth']:.0f}万")
     if effects.get("net_worth", 0) < 0:

@@ -20,13 +20,18 @@ def test_showcase_lives_in_docs():
     assert os.path.exists(os.path.join(ROOT, "docs/showcase/biography.html"))
 
 
-def test_output_dir_no_seed_subdirs():
-    """output/ 不应该有 seed42/ 之类 (issue #18 改的)"""
-    seed_dirs = [
-        d for d in os.listdir(os.path.join(ROOT, "output"))
-        if d.startswith("seed")
-    ]
-    assert seed_dirs == [], f"output/ has seed dirs: {seed_dirs}"
+def test_output_dir_no_seed_subdirs_in_git():
+    """output/ 不应该有 seed 命名的文件被 git 跟踪 (issue #18)
+    runtime 跑出来 seed2024_log.json 等是 OK 的, 但不该被 commit
+    """
+    result = subprocess.run(
+        ["git", "ls-files", "output/"],
+        cwd=ROOT, capture_output=True, text=True,
+    )
+    tracked = [f for f in result.stdout.strip().split("\n") if f]
+    seed_tracked = [f for f in tracked if "seed" in f]
+    assert seed_tracked == [], \
+        f"output/ should not have seed files in git: {seed_tracked}"
 
 
 def test_output_compare_html_not_committed():

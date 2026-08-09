@@ -93,7 +93,13 @@ async def main():
     end_quarter = int(os.getenv("LIFE_END_QUARTER", "0")) or None
     if end_quarter is None:
         end_quarter = (int(cfg["simulation"]["end_age"]) - int(cfg["simulation"]["start_age"])) * 4
-    driver = Driver(state, world, council, end_quarter=end_quarter)
+    driver = Driver(
+        state,
+        world,
+        council,
+        end_quarter=end_quarter,
+        housing_config=cfg.get("housing", {}),
+    )
     logger.info("⏱️  开始跑 18→%s (%d 季度)...", cfg['simulation']['end_age'], end_quarter)
     t0 = time.time()
     
@@ -126,6 +132,7 @@ async def main():
                 "family_background": state.person.family_background,
             },
             "final_metrics": final,
+            "final_balance_sheet": state.balance_sheet.as_dict(),
             "metrics_history": state.metrics_history,
             "decisions": [_decision_to_dict(d) for d in state.decisions],
         }, f, ensure_ascii=False, indent=2, default=str)
