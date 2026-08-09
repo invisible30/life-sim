@@ -257,45 +257,155 @@ class Agent(ABC):
         )
 
     def _fallback_vote(self, agenda: dict[str, Any], err_content: str) -> AgentVote:
-        """LLM 不可用时的启发式投票"""
+        """issue #13: LLM 不可用时的真正 fallback, 不是 silent 猜测
+
+        之前 (设计错的):
+        - persona_keywords 在中文 option 里几乎必命中
+        - "best score" 永远是某选项, 几乎不返回 options[0]
+        - 7 个 agent fallback 投的经常跟 LLM 投的相同 -> "fallback" 是装饰
+
+        现在 (新设计):
+        1. luck 走纯随机 (之前一样)
+        2. 其他 agent 走 persona -> option 类别映射 (类别匹配才投, 不靠 keyword 撞)
+           每个 persona 对应一个 preferred category 列表:
+           rational -> stability, growth
+           emotional -> relationships, experience
+           ambitious -> growth, challenge
+           realistic -> stability, safety
+           family -> stability, tradition
+           future_me -> long_term, balance
+           body -> health, rest
+        3. option 的 "category" 来自 events.json 里 option_effects 的隐含标签
+           (没标签就 fall back 到 options[0] + 中立)
+        4. reasoning 加 [fallback: persona=X, category=Y, match=Z] 标签
+           方便事后统计 "这个 decision 里 7 个 agent 几个走 fallback"
+        """
+        import logging
+        import random
         options = agenda.get("options", [])
+        event_id = agenda.get("id", "")
 
-        # 按 agent persona 找匹配选项
-        persona_keywords = {
-            "rational": ["实际", "稳", "数据", "数据", "成本", "收益", "效率", "系统", "理性", "算", "长期", "ROI", "钱", "薪资", "技术", "工作", "找", "学"],
-            "emotional": ["关系", "感", "朋友", "TA", "陪伴", "一起", "感受", "爱", "生活", "玩", "享受", "当下", "跟着", "想要", "快乐"],
-            "ambitious": ["大", "突破", "all in", "跳槽", "转", "新", "升", "创业", "高薪", "更好", "行业", "天花板", "看齐", "敢"],
-            "realistic": ["稳", "现实", "先", "保留", "安全", "风险", "成本", "负债", "存款", "副业", "过渡", "观察"],
-            "family": ["爸妈", "父母", "回家", "对象", "结婚", "相亲", "稳定", "传统", "陪伴", "家庭", "家人", "未来"],
-            "future_me": ["5年", "10年", "20年", "临终", "长期", "未来", "天花板", "老了", "人生", "选择"],
-            "body": ["休息", "运动", "健康", "调养", "跑步", "睡眠", "看医生", "养", "GAP", "停下来"],
-        }
-        # luck 走随机
+        # === 1. luck 走随机 ===
         if self.name == "luck":
-            import random
-            rng = random.Random(hash((self.state.seed, self.state.current_quarter, self.name)))
+            # issue #13: 不要用 hash() (Python per-process randomization, 不稳),
+            # 用 (seed, quarter, name) 拼成稳定 seed
+            seed_int = (
+                int(self.state.seed) * 10000
+                + int(self.state.current_quarter) * 10
+                + sum(ord(c) for c in self.name)
+            )
+            rng = random.Random(seed_int)
             choice = options[rng.randint(0, len(options) - 1)] if options else ""
-            return AgentVote(agent=self.name, role=self.voice, emoji=self.emoji,
-                             option=choice, weight=rng.choice([-1, 0, 1]),
-                             reasoning=f"[fallback random: {err_content[:30]}]")
+            return AgentVote(
+                agent=self.name, role=self.voice, emoji=self.emoji,
+                option=choice, weight=rng.choice([-1, 0, 1]),
+                reasoning=f"[fallback: luck random pick (seed={seed_int}); error={err_content[:30]}]",
+            )
 
-        kws = persona_keywords.get(self.name, [])
+        # === 2. persona -> preferred categories ===
+        persona_categories = {
+            "rational":   ["stability", "growth", "data", "control"],
+            "emotional":   ["relationships", "experience", "feel", "people"],
+            "ambitious":   ["growth", "challenge", "breakthrough", "advance"],
+            "realistic":   ["stability", "safety", "baseline", "risk"],
+            "family":      ["stability", "tradition", "home", "duty"],
+            "future_me":   ["long_term", "balance", "no_regret", "perspective"],
+            "body":        ["health", "rest", "balance", "self_care"],
+        }
+        preferred = persona_categories.get(self.name, [])
+
+        # === 3. 从 events.json 读 option 的隐含 category ===
+        option_categories = self._load_option_categories(event_id)
+
+        # === 4. 选 option: 优先选 category 匹配 persona preferred 的, 都不匹配就 options[0] + 中立 ===
         best_option = ""
-        best_score = -1
+        best_score = 0
+        best_match = ""
         for opt in options:
-            score = sum(1 for kw in kws if kw in opt)
+            cats = option_categories.get(opt, [])
+            # 计算 persona preferred 和 option category 的交集大小
+            overlap = set(cats) & set(preferred)
+            score = len(overlap)
             if score > best_score:
                 best_score = score
                 best_option = opt
+                best_match = ",".join(sorted(overlap))
 
-        if not best_option:
+        # 真正 fallback: 没有任何 category 匹配
+        if not best_option or best_score == 0:
             best_option = options[0] if options else ""
+            return AgentVote(
+                agent=self.name, role=self.voice, emoji=self.emoji,
+                option=best_option, weight=0,
+                reasoning=f"[fallback: no category match, default to options[0]; error={err_content[:30]}]",
+            )
 
         return AgentVote(
             agent=self.name, role=self.voice, emoji=self.emoji,
-            option=best_option, weight=1 if best_score > 0 else 0,
-            reasoning=f"[fallback heuristic match score={best_score}: {err_content[:40]}]",
+            option=best_option, weight=1 if best_score >= 1 else 0,
+            reasoning=f"[fallback: persona={self.name}, matched={best_match}; error={err_content[:30]}]",
         )
+
+    def _load_option_categories(self, event_id: str) -> dict[str, list[str]]:
+        """从 events.json 读 event 的 option_effects 里提取 category 标签
+
+        option_effects 形如:
+          {"match": ["买", "上车"], "effects": {"net_worth": -40, ...}}
+
+        第一层映射: keyword -> human-readable category
+          "买/上车/贷款" -> "investment"
+          "租/不买/继续" -> "stability"
+          "回老家" -> "tradition"
+          ...
+
+        没找到 event / 没 option_effects -> 返回空 dict, fallback 走 default
+        """
+        # keyword -> category 映射 (issue #13 acceptance: 真正可解释的 category)
+        KEYWORD_TO_CATEGORY = {
+            "买": "investment", "上车": "investment", "贷款": "investment",
+            "租": "stability", "不买": "stability", "再等等": "stability", "继续租": "stability",
+            "回老家": "tradition", "小城市": "tradition",
+            "考": "growth", "研": "growth", "学": "growth", "考证": "growth", "CPA": "growth", "CFA": "growth",
+            "offer": "growth", "就业": "growth", "去大厂": "growth",
+            "创业": "challenge", "跳槽": "challenge", "转": "challenge",
+            "出国": "experience", "海外": "experience", "游学": "experience",
+            "GAP": "rest", "gap": "rest", "休息": "rest", "停下来": "rest", "调养": "rest", "看医生": "rest",
+            "回家": "tradition", "回家发展": "tradition",
+            "分手": "experience", "相亲": "tradition", "结婚": "tradition", "对象": "tradition",
+            "陪伴": "relationships", "TA": "relationships", "跟": "relationships",
+            "做点小生意": "challenge", "接外包": "challenge",
+        }
+        if not event_id:
+            return {}
+        try:
+            import json
+            from pathlib import Path
+            events_path = Path(__file__).parent.parent / "data" / "events.json"
+            with open(events_path) as f:
+                data = json.load(f)
+            all_events = list(data.get("milestones", [])) + list(data.get("random_events", []))
+            for ev in all_events:
+                if ev.get("id") != event_id:
+                    continue
+                categories: dict[str, list[str]] = {}
+                # 优先用 option_effects 拿 category
+                for opt_effect in (ev.get("option_effects") or []):
+                    keywords = opt_effect.get("match", [])
+                    matched_cats = set()
+                    for kw in keywords:
+                        if kw in KEYWORD_TO_CATEGORY:
+                            matched_cats.add(KEYWORD_TO_CATEGORY[kw])
+                    for opt in (ev.get("options") or []):
+                        if any(kw in opt for kw in keywords):
+                            categories.setdefault(opt, []).extend(matched_cats)
+                # 没 option_effects 的 event: option 全部归 "unknown"
+                if not categories:
+                    for opt in (ev.get("options") or []):
+                        categories[opt] = ["unknown"]
+                return categories
+        except Exception:
+            pass
+        return {}
     
     def _build_user_prompt(
         self,
