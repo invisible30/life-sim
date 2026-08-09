@@ -183,7 +183,13 @@ class Agent(ABC):
         if content.startswith("[LLM_ERROR") or content.startswith("[LLM_CALL_LIMIT_REACHED"):
             return self._fallback_vote(agenda, content)
 
-        option, weight, reasoning = self._parse_vote(content, options)
+        option, weight, reasoning, parse_fallback = self._parse_vote(content, options)
+        # 强度和理由独立解析，让 _parse_vote 单独负责选项
+        weight = self._parse_strength(content)
+        reasoning = self._parse_reasoning(content)
+        # 把 parse_fallback 信号写进 reasoning 前缀，让 driver / 输出能统计
+        if parse_fallback:
+            reasoning = f"[parse-fallback] {reasoning}"
         return AgentVote(
             agent=self.name,
             role=self.voice,
@@ -300,35 +306,76 @@ class Agent(ABC):
         return ""
     
     def _parse_vote(self, content: str, options: list[str]) -> tuple[str, int, str]:
-        """解析投票输出"""
+        """解析投票输出 (4 层 fuzzy fallback)
+
+        解析顺序 (越靠前越精确):
+        1. 严格正则: "选项: X" / "选项：X" (允许中英冒号 + 任意空白)
+        2. 字母扫描: content 前 200 字符里出现 A/B/C... 单字母
+        3. 选项文本: content 里出现选项本身的子串 (中英文混合)
+        4. 默认 options[0] + 标记 _parse_fallback=True 让 caller 知道
+
+        Returns:
+            (option, weight, reasoning, parse_fallback) — 注意返回值多了一项
+
+        修了 issue #2 (fuzzy parse)。原版在 LLM 不输出标准格式时会静默投
+        options[0]，导致"vote tally"实质上是个 50% 噪声。v2 加了
+        parse_fallback 标志，让 driver 可以统计"这个 decision 里 7 个 agent
+        几个走 fallback"，作为 diversity 诊断信号。
+        """
         # 默认
         option = options[0] if options else ""
         weight = 0
         reasoning = content[:200]
-        
-        # 找选项
-        opt_match = re.search(r"选项[：:]\s*([A-Z])", content)
-        if opt_match:
-            idx = ord(opt_match.group(1).upper()) - ord('A')
+        parse_fallback = True  # 任何非严格路径都算 fallback
+
+        if not content or not options:
+            return option, weight, reasoning, parse_fallback
+
+        # 1) 严格正则 — "选项: X" / "选项：X" 允许大写小写, 允许空白
+        strict = re.search(r"选项\s*[：:]\s*([A-Za-z])", content)
+        if strict:
+            idx = ord(strict.group(1).upper()) - ord('A')
             if 0 <= idx < len(options):
-                option = options[idx]
-        else:
-            # 尝试匹配 A/B/C 直接出现
-            for i, opt in enumerate(options):
-                letter = chr(ord('A') + i)
-                if letter in content[:100] or opt[:6] in content:
-                    option = opt
-                    break
-        
-        # 找强度
-        for label, w in VOTE_WEIGHTS.items():
+                return options[idx], weight, reasoning, False  # 严格命中 = 不算 fallback
+
+        # 2) 字母扫描 — content 前 200 字符里孤立的 A/B/C 单字母
+        # 用 decision verb 上下文匹配: "选 A" / "投 B" / "倾向 C" / "A 项" / "A. xxx"
+        # 避免 "API" / "B 站" / "C 盘" 误命中
+        decision_verbs = r"(?:选|投|倾向|选是|答案是|选的是|就是|应选)"
+        for i, opt in enumerate(options):
+            letter = chr(ord('A') + i)
+            patterns = [
+                # 决策动词 + 字母
+                rf"{decision_verbs}\s*{letter}\b",
+                # 字母 + 标点 (像 "A." "A、" 列表项)
+                rf"(?:^|[\s:：]){letter}\s*[\.。,，、]",
+                # 行首字母
+                rf"^{letter}\s*[\.。:：,，、]",
+            ]
+            for p in patterns:
+                if re.search(p, content[:200], re.MULTILINE):
+                    return opt, weight, reasoning, True  # 字母级 fallback
+
+        # 3) 选项文本子串匹配 — 中文场景
+        for opt in options:
+            # 取选项前 6 字符 (中文截断友好) 作为匹配 key
+            key = opt[:6].strip()
+            if key and key in content:
+                return opt, weight, reasoning, True  # 文本级 fallback
+
+        # 4) 全部失败 -> 默认 options[0] (parse_fallback 已经是 True)
+        return option, weight, reasoning, parse_fallback
+
+    def _parse_strength(self, content: str) -> int:
+        """解析投票强度 — 按 key 长度倒序匹配, 避免 "反对" 抢 "强烈反对" """
+        for label, w in sorted(VOTE_WEIGHTS.items(), key=lambda kv: -len(kv[0])):
             if label in content:
-                weight = w
-                break
-        
-        # 找理由
+                return w
+        return 0
+
+    def _parse_reasoning(self, content: str) -> str:
+        """解析理由"""
         reason_match = re.search(r"理由[：:]\s*(.+)", content, re.DOTALL)
         if reason_match:
-            reasoning = reason_match.group(1).strip()[:200]
-        
-        return option, weight, reasoning
+            return reason_match.group(1).strip()[:200]
+        return content[:200]
