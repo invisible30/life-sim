@@ -139,14 +139,50 @@ class Council:
         prev_views: list[AgentView],
         round_num: int,
     ) -> list[AgentView]:
+        """一轮辩论回应. mode 决定是串行 (真辩论) 还是并行 (旧行为, 给 ablation 用)
+
+        Sequential 模式:
+            agent 1 看到 prev_views -> 回应
+            agent 2 看到 prev_views + agent 1 的最新回应 -> 回应
+            agent 3 看到 prev_views + agent 1 + agent 2 的最新回应 -> 回应
+            ...
+        这样真辩论的 back-and-forth 才能发生: A 反驳 B 后, B 能看到 A 的反驳
+        并修正自己立场.
+
+        Parallel 模式 (旧行为):
+            所有 agent 同时看到 prev_views 同一个 snapshot, 互不参考
+            给 ablation / 性能测试用, 不推荐 (issue #6)
+
+        通过 env var LIFE_DEBATE_MODE=parallel|sequential 切换, 默认 sequential.
+        """
+        mode = os.getenv("LIFE_DEBATE_MODE", "sequential").lower()
         llm_agents = [a for a in self.agents if a.name != "luck"]
-        tasks = [self._respond_with_sem(a, agenda, prev_views, round_num) for a in llm_agents]
-        results = await asyncio.gather(*tasks, return_exceptions=True)
-        new_views = []
-        for a, r in zip(llm_agents, results):
-            if isinstance(r, Exception):
-                continue
-            new_views.append(r)
+        new_views: list[AgentView] = []
+
+        if mode == "parallel":
+            # 旧行为, 留给 ablation. issue #6 之前所有用户都用这个, 7 agent 同时
+            # 拿到 prev_views 同一个 snapshot, 没人真辩论.
+            tasks = [self._respond_with_sem(a, agenda, prev_views, round_num) for a in llm_agents]
+            results = await asyncio.gather(*tasks, return_exceptions=True)
+            for a, r in zip(llm_agents, results):
+                if isinstance(r, Exception):
+                    continue
+                new_views.append(r)
+        else:
+            # 新行为: 真辩论. 每个 agent 看到截至目前的最新 views.
+            rolling_views = list(prev_views)
+            for a in llm_agents:
+                try:
+                    view = await self._respond_with_sem(a, agenda, rolling_views, round_num)
+                    new_views.append(view)
+                    # 把本 agent 的最新回应加进 rolling, 让下一个 agent 看到
+                    rolling_views = rolling_views + [view]
+                except Exception as e:
+                    if not os.getenv("LIFE_QUIET"):
+                        import sys
+                        print(f"  ⚠️  {a.name} debate round {round_num} failed: {type(e).__name__}: {e}",
+                              file=sys.stderr, flush=True)
+                    continue
         return new_views
 
     async def _respond_with_sem(self, agent, agenda, prev_views, round_num):
