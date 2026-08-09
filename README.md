@@ -98,10 +98,10 @@ life-sim/
 │   └── luck.py           #   pure dice, no LLM
 │
 ├── meeting/              # The "boardroom"
-│   └── council.py        #   parallel positions → 1 debate round → parallel votes
+│   └── council.py        #   parallel positions → 1 sequential debate round → parallel votes
 │
 ├── llm/
-│   └── client.py         # OpenAI-compatible client w/ exponential-backoff retry
+│   └── client.py         # OpenAI + Anthropic clients, exponential backoff, 429 Retry-After
 │
 ├── reporting/            # HTML / chart rendering
 │   ├── html_builder.py   #   Jinja2 + Chart.js, single biography
@@ -143,19 +143,21 @@ Tested with:
 
 - **MiniMax** (`https://api.minimaxi.com/v1`, model `MiniMax-M2.7-highspeed`) — fast & cheap
 - **OpenAI** (`gpt-4o-mini`, `gpt-4o`)
-- **Anthropic** (via OpenAI-compatible proxy)
+- **Anthropic** (Claude 3.5 Sonnet / Sonnet 4) — native via the `anthropic` SDK
 
-The default retry strategy is exponential backoff (4 attempts, ~1s → ~12s) on rate-limit and transient errors.
+The default retry strategy is exponential backoff (4 attempts, ~1s → ~12s) on rate-limit and transient errors. The 429 `Retry-After` header is respected when present.
 
 ## Cost & runtime
 
-A single life (47 decisions × 8 agents × 2 debate rounds ≈ 750 LLM calls) takes:
+A single life (47 decisions × ~17 LLM calls per decision in sequential-debate mode ≈ 800 LLM calls) takes:
 
-| Model | Wall time | Approx cost |
+| Model | Wall time | Approx cost (anecdotal) |
 |---|---|---|
 | MiniMax-M2.7-highspeed | ~5-10 min | ~$0.05 |
 | GPT-4o-mini | ~10-15 min | ~$0.15 |
 | GPT-4o | ~15-25 min | ~$1.50 |
+
+> Cost numbers are anecdotal from a single 10-seed MiniMax run in Aug 2026; your actual spend will vary with prompt length, debate rounds, and provider pricing.
 
 A 10-seed parallel run (4 workers) takes ~2-3 hours total wall time on MiniMax.
 
@@ -166,9 +168,9 @@ Tune `LIFE_MAX_LLM_CALLS` in `.env` to cap the spend per worker.
 Be honest about what this *isn't*:
 
 - **Not predictive.** Real life is shaped by luck, relationships, and 10,000 micro-decisions. A 47-question survey of the major crossroads will *never* capture it.
-- **LLM social-desirability bias.** All 7 personas are the same underlying model. They share a tendency toward "responsible adult" framings. The model will often output *"join clubs, do internships, save money"* even for a 493-score rural-background character. The starting point matters; the persona prompts softens it but don't fully override.
-- **Vote aggregation is blunt.** Hard majority picks the "safe" option. Minority voices (especially the contrarian ones) get filtered. Adding weighted voting or a "minority override" probability is on the roadmap.
-- **No memory across agents in debate.** Each agent sees the others' positions but not their internal chain-of-thought. With more capable models you could surface CoT into the deliberation.
+- **LLM social-desirability bias still leaks through.** The 7 personas share an underlying model and the same training. Even with hard per-persona constraints and the anti-convergence mandate in the system prompt, certain framings ("join clubs, do internships, save money") recur. The starting point (`gaokao` / `family` / `city`) still does most of the differentiation work.
+- **Vote aggregation is improving but still blunt.** Hard majority picks the "safe" option. PR #8 added a drift mechanism that nudges agent weights based on past correctness, but minority voices are still filtered more than they should be. A "minority override" probability is on the roadmap.
+- **No cross-agent chain-of-thought in debate.** Each agent sees the others' final positions but not their internal CoT. With more capable models you could surface CoT into the deliberation.
 
 ## Contributing
 
