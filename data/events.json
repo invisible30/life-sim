@@ -236,7 +236,60 @@
         "边工作边申请出国",
         "GAP 半年再想"
       ],
-      "consequence_hint": "分叉路口。每个方向都是不同的人生路径，5 年后会变成不同的人。 职业路径选择，会决定 5 年后的圈子、技能栈、收入曲线。"
+      "consequence_hint": "分叉路口。每个方向都是不同的人生路径，5 年后会变成不同的人。 职业路径选择，会决定 5 年后的圈子、技能栈、收入曲线。",
+      "effects": {},
+      "option_effects": [
+        {
+          "match": [
+            "就业",
+            "工作",
+            "offer",
+            "去"
+          ],
+          "effects": {
+            "net_worth": 2,
+            "career_level": 3,
+            "skill_depth": 1
+          }
+        },
+        {
+          "match": [
+            "考研",
+            "读研",
+            "上岸",
+            "录取"
+          ],
+          "effects": {
+            "skill_depth": 5,
+            "social_capital": 2,
+            "career_income_yearly": -1
+          }
+        },
+        {
+          "match": [
+            "出国",
+            "海外"
+          ],
+          "effects": {
+            "relationship_density": -5,
+            "meaning_score": 8,
+            "career_income_yearly": 2
+          }
+        },
+        {
+          "match": [
+            "gap",
+            "GAP",
+            "休息",
+            "停"
+          ],
+          "effects": {
+            "physical_health": 5,
+            "mental_health": 5,
+            "regret_index": 3
+          }
+        }
+      ]
     },
     {
       "id": "senior_grad_trip",
@@ -355,7 +408,34 @@
         "拉同事组队一起考",
         "报个班系统学"
       ],
-      "consequence_hint": "机会窗口——选对了能撬动后续 5 年，选错了要付时间代价。"
+      "consequence_hint": "机会窗口——选对了能撬动后续 5 年，选错了要付时间代价。",
+      "effects": {},
+      "option_effects": [
+        {
+          "match": [
+            "考",
+            "报",
+            "学"
+          ],
+          "effects": {
+            "skill_depth": 10,
+            "career_level": 3,
+            "free_hours_weekly": -8
+          }
+        },
+        {
+          "match": [
+            "不",
+            "算了",
+            "太累",
+            "弃"
+          ],
+          "effects": {
+            "free_hours_weekly": 5,
+            "skill_depth": -2
+          }
+        }
+      ]
     },
     {
       "id": "early_meet_partner",
@@ -406,7 +486,45 @@
         "等房价跌（但可能继续涨）",
         "看老家能不能买"
       ],
-      "consequence_hint": "分叉路口。每个方向都是不同的人生路径，5 年后会变成不同的人。 房子在中国语境下绑定了婚姻/教育/养老，是个杠杆很大的决定。"
+      "consequence_hint": "分叉路口。每个方向都是不同的人生路径，5 年后会变成不同的人。 房子在中国语境下绑定了婚姻/教育/养老，是个杠杆很大的决定。",
+      "effects": {},
+      "option_effects": [
+        {
+          "match": [
+            "买",
+            "上车",
+            "贷款"
+          ],
+          "effects": {
+            "net_worth": -40,
+            "relationship_density": 5,
+            "meaning_score": 3
+          }
+        },
+        {
+          "match": [
+            "租",
+            "不买",
+            "再等等",
+            "继续租"
+          ],
+          "effects": {
+            "net_worth": 0.5,
+            "meaning_score": -1
+          }
+        },
+        {
+          "match": [
+            "回老家",
+            "小城市"
+          ],
+          "effects": {
+            "net_worth": -20,
+            "relationship_density": 10,
+            "physical_health": 3
+          }
+        }
+      ]
     },
     {
       "id": "early_parents_health_pre",
@@ -780,7 +898,37 @@
         "跟银行谈调整还款计划",
         "反思：是不是买贵了"
       ],
-      "consequence_hint": "重大人生节点，影响后续 2-3 个事件链。 房子在中国语境下绑定了婚姻/教育/养老，是个杠杆很大的决定。"
+      "consequence_hint": "重大人生节点，影响后续 2-3 个事件链。 房子在中国语境下绑定了婚姻/教育/养老，是个杠杆很大的决定。",
+      "effects": {
+        "physical_energy": -2,
+        "career_level": 1
+      },
+      "option_effects": [
+        {
+          "match": [
+            "还",
+            "还贷",
+            "按月"
+          ],
+          "effects": {
+            "net_worth": -1,
+            "career_income_yearly": -0.5,
+            "meaning_score": 2
+          }
+        },
+        {
+          "match": [
+            "提前",
+            "一次性",
+            "卖掉"
+          ],
+          "effects": {
+            "net_worth": -10,
+            "physical_health": 2,
+            "mental_health": 5
+          }
+        }
+      ]
     },
     {
       "id": "settling_parents",

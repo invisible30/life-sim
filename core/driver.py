@@ -266,21 +266,64 @@ def apply_effects(metrics_obj, effects: dict[str, float]) -> None:
             metrics_obj.physical_energy = max(0, min(100, metrics_obj.physical_energy + v))
 
 
+def _load_event_by_id(event_id: str) -> dict | None:
+    """从 events.json 里读单个 event, 找不到返回 None. 失败时不抛 (log warning)."""
+    if not event_id:
+        return None
+    try:
+        import json
+        with open(_EVENTS_PATH) as f:
+            data = json.load(f)
+        all_events = list(data.get("milestones", [])) + list(data.get("random_events", []))
+        for ev in all_events:
+            if ev.get("id") == event_id:
+                return ev
+    except Exception:
+        pass
+    return None
+
+
+# issue #14: events.json 路径, 给 _load_event_by_id 用
+from pathlib import Path
+_EVENTS_PATH = Path(__file__).parent.parent / "data" / "events.json"
+
+
 def compute_decision_effects(decision: DecisionRecord) -> dict[str, float]:
-    """根据决策选项计算 effect"""
+    """根据决策计算 effect, 优先级 (高 -> 低):
+    1. events.json 里这个 event 的 per-event effects (issue #14)
+    2. events.json 里这个 event 的 per-option effects (新加: 按 chosen 选对应 effect)
+    3. OPTION_EFFECTS 关键字规则 (旧逻辑, 向后兼容)
+    4. TYPE_EFFECTS 类型默认 (旧逻辑)
+    """
     effects: dict[str, float] = {}
-    # 类型默认
-    type_def = TYPE_EFFECTS.get(decision.event_type, {})
-    for k, v in type_def.items():
-        effects[k] = effects.get(k, 0) + v
-    # 选项匹配
-    chosen = decision.chosen
+
+    # 1+2) 查 events.json 里的 event-level effects
+    event_def = _load_event_by_id(decision.event_id)
+    if event_def is not None:
+        # 1) event-level 全局 effects (无 option 依赖)
+        for k, v in (event_def.get("effects") or {}).items():
+            effects[k] = effects.get(k, 0) + v
+        # 2) event-level option-specific effects
+        for opt_rule in (event_def.get("option_effects") or []):
+            keywords = opt_rule.get("match", [])
+            if any(kw in decision.chosen for kw in keywords):
+                for k, v in opt_rule.get("effects", {}).items():
+                    effects[k] = effects.get(k, 0) + v
+                break  # 只匹配第一个
+
+    # 3) OPTION_EFFECTS 关键字规则
     for rule in OPTION_EFFECTS:
         for kw in rule["match"]:
-            if kw in chosen:
+            if kw in decision.chosen:
                 for k, v in rule["effects"].items():
                     effects[k] = effects.get(k, 0) + v
                 break
+
+    # 4) TYPE_EFFECTS 类型默认
+    type_def = TYPE_EFFECTS.get(decision.event_type, {})
+    for k, v in type_def.items():
+        effects[k] = effects.get(k, 0) + v
+
     return effects
 
 

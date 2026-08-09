@@ -87,6 +87,7 @@ class Council:
         record = DecisionRecord(
             quarter=self.state.current_quarter,
             age=self.state.current_age,
+            event_id=event.id,            # issue #14: 写 event.id, 让 effect 计算能回查 events.json
             event_title=event.title,
             event_description=event.description,
             event_type=event.type,

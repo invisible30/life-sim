@@ -121,6 +121,7 @@ class DecisionRecord:
     id: str = field(default_factory=lambda: str(uuid.uuid4())[:8])
     quarter: int = 0                # 第几个季度
     age: float = 0.0
+    event_id: str = ""              # issue #14: 加这个字段, 便于 effect 计算回查 events.json
     event_title: str = ""
     event_description: str = ""
     event_type: str = ""            # milestone / opportunity / crisis / crossroads
