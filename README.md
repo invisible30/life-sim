@@ -7,7 +7,7 @@
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/)
 [![LLM](https://img.shields.io/badge/LLM-OpenAI%20Compatible-ff6b6b.svg)](https://platform.openai.com/)
 
-[中文说明](#中文说明) · [Architecture](ARCHITECTURE.md) · [Live demo](output/compare.html)
+[中文说明](#中文说明) · [Architecture](ARCHITECTURE.md) · [Live demo](docs/showcase/compare.html)
 
 ---
 
@@ -34,8 +34,8 @@ Each run simulates one life from age 18 to 30 — about 45 decision points.
 
 The repo ships with two rendered artefacts (see [`.gitignore`](.gitignore) for the whitelist rules):
 
-- **[`output/compare.html`](output/compare.html)** — 10-seed side-by-side comparison (radar chart, scorecard, vote distribution). Open in any browser.
-- **[`output/seed42/biography.html`](output/seed42/biography.html)** — full single-life biography (every debate, every vote, every metric over time).
+- **[`docs/showcase/compare.html`](docs/showcase/compare.html)** — 10-seed side-by-side comparison (radar chart, scorecard, vote distribution). Open in any browser.
+- **[`docs/showcase/biography.html`](docs/showcase/biography.html)** — full single-life biography (every debate, every vote, every metric over time).
 
 Both load Chart.js from CDN, no build step, no server. Just open the file.
 
@@ -55,7 +55,7 @@ python main.py
 # 4. Run 10 lives in parallel and build a comparison report
 python multi_run.py --seeds 10 --workers 4
 # → output/seed<N>/{log.json, biography.html}
-# → output/compare.html
+# → output/compare.html  (注: 仓库里 commited 的 showcase 副本在 docs/showcase/)
 ```
 
 That's it. No database, no auth, no deployment — just an LLM and a JSON config.
@@ -111,11 +111,13 @@ life-sim/
 ├── data/
 │   └── events.json       # 72 milestone events across 8 life stages
 │
-├── output/               # Runtime output (auto-generated)
-│   ├── compare.html      #   ← committed: 10-seed comparison
-│   └── seed42/           #   ← committed: single-seed showcase
-│       ├── biography.html
-│       └── log.json
+├── output/               # Runtime output (auto-generated, gitignored)
+│   # 注意: 仓库自带的 showcase 副本在 docs/showcase/ (issue #18)
+│
+├── docs/
+│   └── showcase/         # Committed demo files (no race with local runs)
+│       ├── compare.html
+│       └── biography.html
 │
 └── tests/
 ```
@@ -192,7 +194,7 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for the system design and where to plug i
 
 把"自我"拆成 7 个 LLM agent + 1 个骰子，每个人格带自己的立场和语气。每到一个人生关键岔路口，七个"我"就开吵——先各写立场，再来一轮辩论，最后投票，多数决推动状态往前走。
 
-跑一个 18-30 岁的人生大约 47 个决策点，单 seed 5-15 分钟（取决于 LLM）。多 seed 并行跑 + 对比报告看 `output/compare.html`。
+跑一个 18-30 岁的人生大约 47 个决策点，单 seed 5-15 分钟（取决于 LLM）。多 seed 并行跑 + 对比报告看 `output/compare.html`（仓库自带的 showcase 副本在 `docs/showcase/`，跑你自己的会被覆盖）。
 
 这个项目不是预测你的人生——它是一个**镜子**，不是水晶球。看 7 个互相拉扯的自己，是一件好玩的事。
 
