@@ -35,6 +35,8 @@ build/
 output/*.log
 output/*.json
 output/seed*/
+output/seed*_log.json
+output/seed*_biography.html
 output/compare.html
 !output/.gitkeep
 

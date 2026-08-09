@@ -13,6 +13,8 @@ import uuid
 from dataclasses import dataclass, field
 from typing import Any
 
+from core.balance_sheet import BalanceSheet
+
 
 @dataclass
 class Personality:
@@ -142,14 +144,17 @@ class LifeState:
     metrics: LifeMetrics = field(default_factory=LifeMetrics)
     current_quarter: int = 0  # 0-indexed
     current_age: float = 18.0
-    
+
+    # 资产负债表（issue #31）— 净资产的真实算式
+    balance_sheet: BalanceSheet = field(default_factory=BalanceSheet)
+
     # 历史
     metrics_history: list[dict[str, Any]] = field(default_factory=list)
     decisions: list[DecisionRecord] = field(default_factory=list)
-    
+
     # 阶段
     life_stage: str = "freshman"  # freshman / sophomore / junior / senior / grad / early_career
-    
+
     # 当前状态标签（用于事件触发）
     flags: set[str] = field(default_factory=set)
     # 例如: {"has_partner", "in_school", "has_job", "burned_out", ...}
@@ -250,18 +255,26 @@ def init_state_from_config(
     }.get(person.family_background, "stable")
     
     metrics = LifeMetrics(
-        net_worth=person.initial_cash / 10000.0,  # 转成万元
+        net_worth=person.initial_cash / 10000.0,  # 净资产由 balance_sheet 驱动，初值会被覆盖
         relationship_density=50 + (person.personality.extraversion - 0.5) * 30,
         free_hours_weekly=70,
     )
-    
+
+    # issue #31: 资产负债表 — 现金 = 启动资金, 净资产 = 现金 + 房子 - 贷款
+    balance_sheet = BalanceSheet(
+        cash=person.initial_cash / 10000.0,
+    )
+
     state = LifeState(
         seed=seed,
         person=person,
         metrics=metrics,
+        balance_sheet=balance_sheet,
         current_quarter=0,
         current_age=float(cfg["simulation"]["start_age"]),
         life_stage="freshman",
     )
+    # 同步净资产初值
+    state.metrics.net_worth = state.balance_sheet.net_worth
     state.record_metrics()
     return state
