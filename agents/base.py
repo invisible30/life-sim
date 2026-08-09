@@ -125,22 +125,67 @@ class Agent(ABC):
 """
     
     def _memory_summary(self) -> str:
+        """issue #16: 强化 memory 摘要, 让 LLM 真的能基于历史调整立场
+
+        之前: 一行 'Q1 标题 → 选了 X, 结果 Y', LLM 几乎不用
+        现在:
+        - 自己的"立场"和"投票"(从 debate 记录里捞)
+        - council 投票分布 (谁投了支持/反对)
+        - outcome 拆解成 ↑/↓ 标记
+        - 显式提示: "如果上次 outcome 不好, 这次你倾向怎么改?"
+        """
         if not self.memory:
             return ""
+
         lines = []
-        for m in self.memory[-3:]:
-            lines.append(
-                f"  - Q{m['quarter']} {m['title'][:30]} → 选了「{m['chosen']}」，结果：{m.get('outcome', '?')[:50]}"
-            )
+        # 最多回看 5 条 (之前 3 条, 加点上下文)
+        recent = self.memory[-5:]
+        for m in recent:
+            q = m.get("quarter", "?")
+            title = m.get("title", "")[:30]
+            chosen = m.get("chosen", "")
+            outcome = m.get("outcome", "")
+            my_stance = m.get("my_stance", "")  # 之前的 express() 立场
+            council_votes = m.get("council_votes", {})  # {agent: weight}
+            agent_name = m.get("agent", self.name)
+            my_weight = council_votes.get(agent_name, 0)
+            other_agents = [n for n in council_votes if n != agent_name]
+            my_agreement = "支持" if my_weight > 0 else ("反对" if my_weight < 0 else "弃权")
+
+            line = f"  - Q{q} {title} → 选了「{chosen}」, outcome: {outcome}"
+            if my_stance:
+                line += f"\n    你当时立场: {my_stance[:80]}"
+            if council_votes:
+                agree = [n for n, w in council_votes.items() if (w > 0) == (my_weight > 0) and w != 0]
+                disagree = [n for n, w in council_votes.items() if (w > 0) != (my_weight > 0) and w != 0]
+                line += f"\n    council 投票: 你{my_agreement} (weight {my_weight}); 同盟: {', '.join(agree) or '无'}; 反对: {', '.join(disagree) or '无'}"
+
+            # 如果 outcome 包含 ↓, 显式提示
+            if "↓" in outcome or "失败" in outcome or "后悔" in outcome:
+                line += "\n    ⚠️ 上次 outcome 不理想, 这次要不要调整你的立场?"
+
+            lines.append(line)
+
         return "\n".join(lines)
     
     def remember_decision(self, decision: dict[str, Any]) -> None:
-        """记住一次决策（精简摘要）"""
+        """issue #16: 记住更丰富的信息, 不只是 chosen + outcome
+
+        多了:
+        - my_stance: 这个 agent 当时在 express() 里写了什么立场
+        - council_votes: 整张投票表 {agent: weight}, 用来算同盟/反对
+        - agent: 这个 memory 条目属于哪个 agent (虽然 self.name 是, 但存一下)
+
+        兼容 title / event_title 两种 key (driver.py 传 title, 老代码传 event_title)
+        """
         self.memory.append({
             "quarter": decision.get("quarter"),
-            "title": decision.get("event_title", ""),
+            "agent": decision.get("agent", self.name),
+            "title": decision.get("title") or decision.get("event_title", ""),
             "chosen": decision.get("chosen", ""),
             "outcome": decision.get("outcome", ""),
+            "my_stance": decision.get("my_stance", ""),
+            "council_votes": decision.get("council_votes", {}),
         })
         if len(self.memory) > 10:
             self.memory = self.memory[-10:]
