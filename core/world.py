@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import Any
 
 from core.state import LifeState
+from core.sanitizer import sanitize_event
 
 
 DATA_DIR = Path(__file__).parent.parent / "data"
@@ -31,12 +32,21 @@ class WorldEvent:
     stage: str | None = None
     
     def to_agenda(self) -> dict[str, Any]:
-        return {
+        # issue #20: 走 sanitizer 把 description / options 里可能的 prompt
+        # 注入 (控制 token, "ignore previous instructions", 零宽字符) 清掉
+        sanitized = sanitize_event({
             "id": self.id,
             "type": self.type,
             "title": self.title,
             "description": self.description,
-            "options": self.options,
+            "options": list(self.options),
+        })
+        return {
+            "id": sanitized["id"],
+            "type": sanitized["type"],
+            "title": sanitized["title"],
+            "description": sanitized["description"],
+            "options": sanitized["options"],
         }
 
 
