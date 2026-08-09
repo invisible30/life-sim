@@ -47,6 +47,7 @@ class LLMClient:
         self.retry_count = 0  # 总重试次数
         self.failure_count = 0  # 永久失败次数
         self._client: openai.AsyncOpenAI | Any = None
+        self._budget_lock = asyncio.Lock()  # issue #15: 守护 max_total_calls 增量
         self._init_client()
 
     @staticmethod
@@ -197,12 +198,15 @@ class LLMClient:
         temperature: float | None,
         max_tokens: int | None,
     ) -> str:
-        """通用指数退避重试, 适配 OpenAI / Anthropic 两种 provider"""
+        """通用指数退避重试, 适配 OpenAI / Anthropic 两种 provider
+
+        注意: call_count 已在 chat() 入口 reserve 过了, 这里不重复 +1
+        (issue #15: 改用预订式 reserve, 重试失败也算 budget 是 by design)
+        """
         last_exc: Exception | None = None
         for attempt in range(self.cfg.max_retries + 1):
             try:
                 result = await once_fn(system, user, temperature, max_tokens)
-                self.call_count += 1
                 if attempt > 0:
                     print(f"  ↻ LLM 重试 {attempt} 次后成功 (累计 {self.call_count} calls)", flush=True)
                 return result
@@ -236,8 +240,14 @@ class LLMClient:
         max_tokens: int | None = None,
     ) -> str:
         """单轮对话，返回 assistant 文本"""
-        if self.call_count >= self.cfg.max_total_calls:
-            return "[LLM_CALL_LIMIT_REACHED] 达到调用上限，跳过此次生成"
+        # issue #15: budget 预订式 reserve. check + 增量 在同一临界区, 然后才
+        # 放锁让其他 coroutine 进来. 如果 20 个并发都到达这里, 锁会序列化它们,
+        # 只有前 max_total_calls 个能 reserve 成功.
+        # 失败的请求(LLM_ERROR)也会被算入 budget, 这是 by design — 拒绝重试无限制.
+        async with self._budget_lock:
+            if self.call_count >= self.cfg.max_total_calls:
+                return "[LLM_CALL_LIMIT_REACHED] 达到调用上限，跳过此次生成"
+            self.call_count += 1  # 立即 reserve, 跟 check 是同一个临界区
 
         if self.cfg.provider == "openai":
             return await self._chat_with_retry(
