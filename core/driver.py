@@ -367,6 +367,12 @@ class Driver:
         if decision:
             effects = compute_decision_effects(decision)
             apply_effects(self.state.metrics, effects)
+            # 4. 决策后调 drift 机制 (issue #1: 之前是空 pass)
+            try:
+                self.council.update_agent_weights(decision, effects)
+            except Exception as e:
+                if not quiet:
+                    print(f"  ⚠️  drift update failed: {type(e).__name__}: {e}")
             update_flags(self.state, decision.chosen)
             decision.outcome = _summarize_outcome(self.state, effects)
         

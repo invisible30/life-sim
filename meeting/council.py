@@ -27,6 +27,11 @@ from llm.client import LLMClient
 class Council:
     """人生董事会主持人"""
 
+    # Drift mechanism step size (issue #1 fix)
+    # 每次决策后, 押对的 agent drift 增 +DRIFT_STEP, 押错的减 -DRIFT_STEP
+    # drift 范围 [-0.5, 0.5]; current_weight 进一步 clamp 到 [0.2, 2.0]
+    DRIFT_STEP: float = 0.05
+
     def __init__(
         self,
         llm: LLMClient,
@@ -217,12 +222,51 @@ class Council:
             lines.append(f"- {emoji}{role} [{sign}] → {opt}: {reason}")
         return "\n".join(lines)
     
-    def update_agent_weights(self, record: DecisionRecord, outcome: str) -> None:
-        """根据决策结果调整 agent 权重（简单的对错机制）"""
-        # 这里可以做得更精细，目前是占位
+    def update_agent_weights(self, record: DecisionRecord, effects: dict[str, float] | None = None) -> None:
+        """根据决策结果调整 agent 权重（drift 机制）
+
+        信号:
+        - outcome_quality = sum(positive deltas) - sum(negative deltas)
+          (从 effects dict 直接算, 不解析字符串)
+        - agreement = sign(agent.vote_weight)   # 正=支持当选, 负=反对, 0=中立
+        - drift_delta = agreement_sign × outcome_quality_sign × DRIFT_STEP
+
+        效果:
+        - agent 投了当选 + outcome 好  -> drift ↑ (这类判断"准", 多投点)
+        - agent 投了当选 + outcome 坏  -> drift ↓ ("跟着大流选错", 减权)
+        - agent 反对当选 + outcome 坏  -> drift ↑ ("少数派蒙对了", 增权)
+        - agent 反对当选 + outcome 好  -> drift ↓ ("少数派错失", 减权)
+        - 弃权/中立 -> drift 不变
+
+        drift 会被 base.Agent.current_weight 自动 clamp 到 [-0.5, 0.5]
+        (实际 current_weight 还会进一步 clamp 到 [0.2, 2.0])
+
+        Closes #1 (drift mechanism was dead code; the loop body was a `pass`).
+        """
+        if effects is None:
+            return
+
+        outcome_quality = sum(v for v in effects.values() if isinstance(v, (int, float)))
+        outcome_sign = 0
+        if outcome_quality > 0.01:
+            outcome_sign = 1
+        elif outcome_quality < -0.01:
+            outcome_sign = -1
+
+        if outcome_sign == 0:
+            # 中性 outcome (平稳) -> 不调权重, 避免噪声
+            return
+
+        votes = record.votes or {}
         for a in self.agents:
             if a.name == "luck":
                 continue
-            # TODO: 基于 outcome 和每个 agent 之前的主张对比
-            # 现在先保持简单
-            pass
+            w = votes.get(a.name, 0)
+            if w == 0:
+                continue
+            agreement_sign = 1 if w > 0 else -1
+            # 投得"准" = agreement × outcome 同号
+            if agreement_sign == outcome_sign:
+                a.drift = min(0.5, a.drift + self.DRIFT_STEP)
+            else:
+                a.drift = max(-0.5, a.drift - self.DRIFT_STEP)
