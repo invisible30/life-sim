@@ -10,6 +10,12 @@ from __future__ import annotations
 import asyncio
 import json
 import os
+import logging
+
+logger = logging.getLogger(__name__)
+import logging
+
+logger = logging.getLogger(__name__)
 import sys
 import time
 from pathlib import Path
@@ -30,6 +36,13 @@ from reporting.html_builder import build_html
 ROOT = Path(__file__).parent
 OUTPUT_DIR = ROOT / "output"
 
+# issue #21: 统一 logger, basicConfig 只在 main 跑时配一次
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+    datefmt="%H:%M:%S",
+)
+
 # 10 个多样性 seed（覆盖不同人设分布）
 SEEDS = [42, 7, 123, 256, 999, 314, 271, 88, 555, 1618]
 
@@ -43,16 +56,18 @@ async def run_one_seed(
 ) -> dict:
     """跑一个 seed，返回摘要"""
     state = init_state_from_config(cfg, seed=seed, randomize_person=randomize)
-    
+
     p = state.person
-    print(f"\n{'='*60}")
-    print(f"🌱 Seed={seed}: 高考{p.gaokao_score} → {p.university}")
-    print(f"   家庭={p.family_background} 城市={p.city_tier} 性别={p.gender}")
-    print(f"   启动资金={p.initial_cash/10000:.1f}万 父母期待={p.parents_expectation}")
-    print(f"   人格 O={p.personality.openness:.2f} C={p.personality.conscientiousness:.2f} "
-          f"E={p.personality.extraversion:.2f} A={p.personality.agreeableness:.2f} N={p.personality.neuroticism:.2f}")
-    print(f"   LLM 已调用: {llm.call_count}/{llm.cfg.max_total_calls}")
-    print(f"{'='*60}", flush=True)
+    logger.info("=" * 60)
+    logger.info("🌱 Seed=%d: 高考%d → %s", seed, p.gaokao_score, p.university)
+    logger.info("   家庭=%s 城市=%s 性别=%s", p.family_background, p.city_tier, p.gender)
+    logger.info("   启动资金=%.1f万 父母期待=%s", p.initial_cash/10000, p.parents_expectation)
+    logger.info("   人格 O=%.2f C=%.2f E=%.2f A=%.2f N=%.2f",
+                p.personality.openness, p.personality.conscientiousness,
+                p.personality.extraversion, p.personality.agreeableness,
+                p.personality.neuroticism)
+    logger.info("   LLM 已调用: %d/%d", llm.call_count, llm.cfg.max_total_calls)
+    logger.info("=" * 60)
     
     world = World(state)
     debate_rounds = int(os.getenv("LIFE_MAX_DEBATE_ROUNDS", "1")) or \
@@ -103,16 +118,17 @@ async def run_one_seed(
             await wd
         except asyncio.CancelledError:
             pass
-        print(flush=True)
+        print(flush=True)  # 进度条换行, 保留 print 因为是 UI element 不是 log
     
     elapsed = time.time() - t0
     
     final = state.metrics.as_dict()
     decisions_count = len(state.decisions)
-    print(f"\n✓ Seed={seed} 完成: {decisions_count} 决策, {elapsed:.0f}s, "
-          f"LLM累计 {llm.call_count}", flush=True)
-    print(f"  终态: 净资产{final['净资产(万)']}万 年收入{final['年收入(万)']}万 "
-          f"事业{final['事业等级']:.0f} 心理{final['心理健康']:.0f} 后悔{final['后悔指数']:.0f}", flush=True)
+    logger.info("✓ Seed=%d 完成: %d 决策, %.0fs, LLM累计 %d",
+                seed, decisions_count, elapsed, llm.call_count)
+    logger.info("  终态: 净资产%s万 年收入%s万 事业%s 心理%s 后悔%s",
+                final['净资产(万)'], final['年收入(万)'],
+                final['事业等级'], final['心理健康'], final['后悔指数'])
     
     # 写每个 seed 的产物
     if seed_dir is None:
@@ -150,9 +166,9 @@ async def run_one_seed(
         from main import _generate_letter
         letter = await _generate_letter(state, llm)
     except Exception as e:
-        print(f"  ⚠️  Letter 生成失败: {e}", flush=True)
+        logger.warning("Letter 生成失败: %s", e)
         letter = f"（信件生成失败：{e}）"
-    
+
     try:
         html_path = seed_dir / "biography.html"
         build_html(
@@ -163,10 +179,8 @@ async def run_one_seed(
             output_path=str(html_path),
         )
     except Exception as e:
-        print(f"  ⚠️  HTML 生成失败: {e}", flush=True)
-        import traceback
-        traceback.print_exc()
-    
+        logger.warning("HTML 生成失败: %s", e, exc_info=True)
+
     return {
         "seed": seed,
         "person": {
@@ -217,24 +231,24 @@ async def main():
     if progress_log.exists():
         progress_log.unlink()
     os.environ["LIFE_PROGRESS_LOG"] = str(progress_log)
-    print(f"📊 实时进度: tail -f {progress_log}")
-    
+    logger.info("📊 实时进度: tail -f %s", progress_log)
+
     # 一个 LLM 客户端，复用配额
     llm = LLMClient()
-    print(f"🤖 LLM: {llm.cfg.model}, 上限 {llm.cfg.max_total_calls} 调用")
-    print(f"   重试: {llm.cfg.max_retries} 次 (指数退避)")
-    
+    logger.info("🤖 LLM: %s, 上限 %d 调用", llm.cfg.model, llm.cfg.max_total_calls)
+    logger.info("   重试: %d 次 (指数退避)", llm.cfg.max_retries)
+
     # 跑 N 个 seed
     requested = int(os.getenv("LIFE_NUM_SEEDS", "10"))
     seeds_to_run = SEEDS[:requested]
-    
+
     # 跳过已经跑完的（resume 支持）
     seeds_pending = [s for s in seeds_to_run if not is_seed_complete(s, OUTPUT_DIR)]
     seeds_done = [s for s in seeds_to_run if is_seed_complete(s, OUTPUT_DIR)]
-    print(f"\n🌍 计划跑 {len(seeds_to_run)} 个 seed")
+    logger.info("🌍 计划跑 %d 个 seed", len(seeds_to_run))
     if seeds_done:
-        print(f"   ✅ 已完成 (resume skip): {seeds_done}")
-    print(f"   🆕 待跑: {seeds_pending}")
+        logger.info("   ✅ 已完成 (resume skip): %s", seeds_done)
+    logger.info("   🆕 待跑: %s", seeds_pending)
     
     results = []
     # 把已完成的也加进 results（从 log.json 提取）
@@ -261,32 +275,31 @@ async def main():
     per_seed_min_calls = int(os.getenv("LIFE_PER_SEED_MIN_CALLS", "200"))
     for seed in seeds_pending:
         if llm.remaining_calls < per_seed_min_calls:
-            print(f"\n⚠️ LLM 剩余调用不足 ({llm.remaining_calls} < {per_seed_min_calls})，跳过剩余 seed")
+            logger.warning("LLM 剩余调用不足 (%d < %d), 跳过剩余 seed",
+                           llm.remaining_calls, per_seed_min_calls)
             break
         try:
             result = await run_one_seed(seed, cfg, llm, randomize=True)
             results.append(result)
         except Exception as e:
-            print(f"\n❌ Seed={seed} 失败: {type(e).__name__}: {e}")
-            import traceback
-            traceback.print_exc()
+            logger.error("Seed=%d 失败: %s: %s", seed, type(e).__name__, e, exc_info=True)
             continue
-    
+
     # 按 seed 顺序排序
     results.sort(key=lambda r: r["seed"])
-    
+
     # 写对比报告
     compare_path = OUTPUT_DIR / "compare.html"
     build_compare_html(results, compare_path)
-    print(f"\n📊 对比报告: {compare_path}")
-    print(f"💾 LLM 累计调用: {llm.call_count}")
-    print(f"🏁 完。共 {len(results)}/{len(seeds_to_run)} 个 seed 成功。")
+    logger.info("📊 对比报告: %s", compare_path)
+    logger.info("💾 LLM 累计调用: %d", llm.call_count)
+    logger.info("🏁 完。共 %d/%d 个 seed 成功。", len(results), len(seeds_to_run))
 
 
 def build_compare_html(results: list[dict], output_path: Path) -> None:
     """生成多 seed 对比 HTML（v2 — 暗色 + Chart.js + 分数卡）"""
     if not results:
-        print("⚠️  无结果，跳过对比报告")
+        logger.warning("无结果, 跳过对比报告")
         return
     
     rows = []
@@ -565,7 +578,7 @@ new Chart(document.getElementById('stdevChart'), {{
     
     Path(output_path).parent.mkdir(parents=True, exist_ok=True)
     Path(output_path).write_text(html, encoding="utf-8")
-    print(f"✅ 对比报告: {output_path} ({len(html)/1024:.1f} KB)")
+    logger.info("✅ 对比报告: %s (%.1f KB)", output_path, len(html)/1024)
 
 
 if __name__ == "__main__":

@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
 import os
 import time
 from dataclasses import asdict
@@ -22,6 +23,8 @@ from agents import make_all_agents
 from core.state import LifeState, DecisionRecord
 from core.world import WorldEvent
 from llm.client import LLMClient
+
+logger = logging.getLogger(__name__)
 
 
 class Council:
@@ -180,9 +183,8 @@ class Council:
                     rolling_views = rolling_views + [view]
                 except Exception as e:
                     if not os.getenv("LIFE_QUIET"):
-                        import sys
-                        print(f"  ⚠️  {a.name} debate round {round_num} failed: {type(e).__name__}: {e}",
-                              file=sys.stderr, flush=True)
+                        logger.warning("%s debate round %d failed: %s: %s",
+                                       a.name, round_num, type(e).__name__, e)
                     continue
         return new_views
 

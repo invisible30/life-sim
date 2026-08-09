@@ -9,6 +9,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import os
 import time
 from dataclasses import asdict
@@ -18,6 +19,8 @@ from typing import Any
 from core.state import LifeState, DecisionRecord
 from core.world import World, WorldEvent
 from meeting.council import Council
+
+logger = logging.getLogger(__name__)
 
 
 # 决策选项 → 连锁 flag 映射（影响后续事件）
@@ -423,7 +426,7 @@ class Driver:
                 self.council.update_agent_weights(decision, effects)
             except Exception as e:
                 if not quiet:
-                    print(f"  ⚠️  drift update failed: {type(e).__name__}: {e}")
+                    logger.warning("drift update failed: %s: %s", type(e).__name__, e)
             update_flags(self.state, decision.chosen)
             decision.outcome = _summarize_outcome(self.state, effects)
         
@@ -485,12 +488,17 @@ def _natural_drift(metrics, stage: str) -> None:
 
 
 def _print_quarter_log(state: LifeState, decision: DecisionRecord | None, econ_phase: str):
+    """issue #21: 从 print 改 logger.info (level 0 = no log, 1 = info)."""
+    quiet = os.getenv("LIFE_QUIET", "0") == "1"
+    if quiet:
+        return
     age = state.current_age
     stage = state.life_stage
-    m = state.metrics
     if decision:
         title = decision.event_title[:30]
         chosen = decision.chosen[:15]
-        print(f"  Q{state.current_quarter:>2} | {age:5.1f}岁 {stage:20s} | 📌 {title} → {chosen}  [经济:{econ_phase}]")
+        logger.info("  Q%-2d | %5.1f岁 %-20s | 📌 %s → %s  [经济:%s]",
+                    state.current_quarter, age, stage, title, chosen, econ_phase)
     else:
-        print(f"  Q{state.current_quarter:>2} | {age:5.1f}岁 {stage:20s} | （平淡期）  [经济:{econ_phase}]")
+        logger.info("  Q%-2d | %5.1f岁 %-20s | （平淡期）  [经济:%s]",
+                    state.current_quarter, age, stage, econ_phase)

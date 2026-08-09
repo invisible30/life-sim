@@ -9,6 +9,7 @@ import os
 import asyncio
 import time
 import random
+import logging
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -16,6 +17,7 @@ import openai
 from dotenv import load_dotenv
 
 load_dotenv()
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -208,7 +210,7 @@ class LLMClient:
             try:
                 result = await once_fn(system, user, temperature, max_tokens)
                 if attempt > 0:
-                    print(f"  ↻ LLM 重试 {attempt} 次后成功 (累计 {self.call_count} calls)", flush=True)
+                    logger.info("↻ LLM 重试 %d 次后成功 (累计 %d calls)", attempt, self.call_count)
                 return result
             except Exception as e:
                 last_exc = e
@@ -216,9 +218,10 @@ class LLMClient:
                 if not retryable or attempt >= self.cfg.max_retries:
                     self.failure_count += 1
                     if retryable:
-                        print(f"  ✗ LLM 重试 {self.cfg.max_retries} 次后仍失败: {type(e).__name__}: {e}", flush=True)
+                        logger.error("✗ LLM 重试 %d 次后仍失败: %s: %s",
+                                     self.cfg.max_retries, type(e).__name__, e)
                     else:
-                        print(f"  ✗ LLM 不可重试错误: {type(e).__name__}: {e}", flush=True)
+                        logger.error("✗ LLM 不可重试错误: %s: %s", type(e).__name__, e)
                     return f"[LLM_ERROR] {type(e).__name__}: {e}"
 
                 # 默认 backoff: 指数 + jitter
@@ -229,15 +232,15 @@ class LLMClient:
                 delay = delay * (0.5 + random.random() * 0.5)
 
                 # issue #17: 如果服务器返回 Retry-After, 用它当 minimum delay
-                # (但仍 cap 在 retry_max_delay, 不让 server 让我们等 1 小时)
                 retry_after = self._parse_retry_after(e)
                 if retry_after is not None:
                     delay = max(delay, min(retry_after, self.cfg.retry_max_delay))
-                    print(f"  ↻ 收到 Retry-After: {retry_after}s, 实际 wait {delay:.1f}s", flush=True)
+                    logger.info("↻ 收到 Retry-After: %ss, 实际 wait %.1fs", retry_after, delay)
 
                 self.retry_count += 1
-                print(f"  ↻ LLM 调用失败 ({type(e).__name__}: {str(e)[:60]}),"
-                      f" {delay:.1f}s 后重试 ({attempt + 1}/{self.cfg.max_retries})", flush=True)
+                logger.info("↻ LLM 调用失败 (%s: %s), %.1fs 后重试 (%d/%d)",
+                            type(e).__name__, str(e)[:60], delay,
+                            attempt + 1, self.cfg.max_retries)
                 await asyncio.sleep(delay)
         return f"[LLM_ERROR] {type(last_exc).__name__}: {last_exc}" if last_exc else "[LLM_ERROR] unknown"
 
