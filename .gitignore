@@ -30,14 +30,12 @@ build/
 .env.*.local
 
 # Runtime output (auto-generated, mostly not committed)
+# Showcase files (issue #18) moved to docs/showcase/ — they never get
+# overwritten by local runs because output/ is gitignored
 output/*.log
 output/*.json
 output/seed*/
-output/seed42/**         # negate later: keep showcase
-!output/seed42/
-!output/seed42/biography.html
-!output/seed42/log.json
-!output/compare.html
+output/compare.html
 !output/.gitkeep
 
 # OS
