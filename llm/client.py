@@ -220,16 +220,65 @@ class LLMClient:
                     else:
                         print(f"  ✗ LLM 不可重试错误: {type(e).__name__}: {e}", flush=True)
                     return f"[LLM_ERROR] {type(e).__name__}: {e}"
+
+                # 默认 backoff: 指数 + jitter
                 delay = min(
                     self.cfg.retry_max_delay,
                     self.cfg.retry_base_delay * (2 ** attempt),
                 )
                 delay = delay * (0.5 + random.random() * 0.5)
+
+                # issue #17: 如果服务器返回 Retry-After, 用它当 minimum delay
+                # (但仍 cap 在 retry_max_delay, 不让 server 让我们等 1 小时)
+                retry_after = self._parse_retry_after(e)
+                if retry_after is not None:
+                    delay = max(delay, min(retry_after, self.cfg.retry_max_delay))
+                    print(f"  ↻ 收到 Retry-After: {retry_after}s, 实际 wait {delay:.1f}s", flush=True)
+
                 self.retry_count += 1
                 print(f"  ↻ LLM 调用失败 ({type(e).__name__}: {str(e)[:60]}),"
                       f" {delay:.1f}s 后重试 ({attempt + 1}/{self.cfg.max_retries})", flush=True)
                 await asyncio.sleep(delay)
         return f"[LLM_ERROR] {type(last_exc).__name__}: {last_exc}" if last_exc else "[LLM_ERROR] unknown"
+
+    @staticmethod
+    def _parse_retry_after(exc: Exception) -> float | None:
+        """从 429/503 响应里抽 Retry-After header, 返回秒数.
+
+        支持两种格式:
+        - delta-seconds: "30" (秒)
+        - HTTP-date: "Wed, 21 Oct 2026 07:28:00 GMT" (绝对时间)
+
+        Returns None 如果 header 不存在 / 解析失败.
+        """
+        resp = getattr(exc, "response", None)
+        if resp is None:
+            return None
+        headers = getattr(resp, "headers", None)
+        if headers is None:
+            return None
+        # httpx.Headers 是 case-insensitive, 但保险起见两种都查
+        raw = headers.get("retry-after") if hasattr(headers, "get") else None
+        if raw is None:
+            return None
+        raw = raw.strip()
+        # 1) 纯数字 -> 秒
+        try:
+            return float(raw)
+        except ValueError:
+            pass
+        # 2) HTTP-date
+        try:
+            from email.utils import parsedate_to_datetime
+            from datetime import datetime, timezone
+            target = parsedate_to_datetime(raw)
+            if target is None:
+                return None
+            now = datetime.now(timezone.utc)
+            delta = (target - now).total_seconds()
+            return max(0.0, delta)
+        except Exception:
+            return None
 
     async def chat(
         self,
